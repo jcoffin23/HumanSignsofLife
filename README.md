@@ -12,8 +12,8 @@ The files that matter are
 ### lmsSim.m
   Main Simulation for LMS up to now
 ### getRespFilter.m
-  Provides the filter coefficients for the Respitory filter
+  Provides the filter coefficients for the Respiratory filter
 ### getHeartFilter.m
-  Provides the filter coefficeitns for the heart rate filter
+  Provides the filter coefficients for the heart rate filter
 ### easyFFT.m
   Function that calculates an FFT for a given input. 

@@ -5,7 +5,7 @@
 This repo contains all of the code used in the Human Signs of Life project.
 
 Currently the SIMULATIONS folder is the only folder
-Inside is all of the Matlab code that I have been Writing. 
+Inside is all of the Matlab code that I have been writing. 
 
 The files that matter are 
 

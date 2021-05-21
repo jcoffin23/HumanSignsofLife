@@ -9,8 +9,14 @@ Inside is all of the Matlab code that I have been writing.
 
 The files that matter are 
 
-### lmsSim.m
-  Main Simulation for LMS up to now
+### mcWrapper.m
+  Main Simulation for ALL radar Tests
+### singleMCTrials.m
+  Runs a single Radar simulation for parameters given
+### estFreqs.m
+  Estimates the frequencies in a given chest compression signal
+### getChestCompression.m
+  Creates a random chest compression signal with given parameters
 ### getRespFilter.m
   Provides the filter coefficients for the Respiratory filter
 ### getHeartFilter.m

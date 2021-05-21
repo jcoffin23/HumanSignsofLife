@@ -1,4 +1,4 @@
-function Hd = getHeartFilter
+function Hd = getHeartFilter(Fs)
 %GETHEARTFILTER Returns a discrete-time filter object.
 
 % MATLAB Code
@@ -8,7 +8,7 @@ function Hd = getHeartFilter
 % Butterworth Bandpass filter designed using FDESIGN.BANDPASS.
 
 % All frequency values are in Hz.
-Fs = 100;  % Sampling Frequency
+% Fs = 100;  % Sampling Frequency
 
 N   = 10;   % Order
 Fc1 = 0.7;  % First Cutoff Frequency

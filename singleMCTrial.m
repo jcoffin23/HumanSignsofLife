@@ -1,5 +1,7 @@
-function [frError,fhError,rangeRes] = singleMCTrial(fc,bw,rxRad,respHeight,heartRatio)
+function [frError,fhError,rangeRes] = singleMCTrial(fc,bw,rxRad,respHeight,heartRatio,beatError,clutterRCS)
+%% Constants
 
+feet2meter  = 0.3048;% 1 foot is this many meters.
 
 %% Setting up parameters
 % rng(2017);
@@ -19,7 +21,7 @@ fb_max = fr_max+fd_max;
 fst = max(2*fb_max,bw);
 
 
-fs = ceil(tm*fst)/tm; %Set fs to be interger multiple of 
+fs = ceil(tm*fst)/tm; %Set fs to be interger multiple of
 
 showPlot = 0;
 
@@ -30,15 +32,45 @@ waveform = phased.FMCWWaveform('SweepTime',tm,'SweepBandwidth',bw,...
 rangeRes = bw2range(bw); %Calculate the Range Resolution for the input bandwidth
 %% Array
 % Model the antenna element
-antElmnt = phased.IsotropicAntennaElement('BackBaffled',true);
+sendElmnt = phased.IsotropicAntennaElement('BackBaffled',true);
+
+% antenna = phased.CosineAntennaElement;
+% fc = 1e9;
+% pattern(antenna,fc,[-30:0.1:30],0,'Type','efield', ...
+%     'CoordinateSystem','polar')
+
+
+
+directionalInPut = 5;
+antElmnt = phased.CosineAntennaElement('CosinePower',[1,directionalInPut]);
+%
+% resp = antElmnt(fc,[0;0]);
+% pattern(antElmnt,fc,0,-90:90,'Type','powerdb','CoordinateSystem','polar')
+% %
+
+
+
+%
+
 
 % Construct the receive array (UCA of two elements. One at -.5 the other at
 % +.5. SO this is centered arround the TX array.
 Ne = 1;
-% rxRad = 0.5;
-recvArray = phased.UCA('Element',antElmnt,'NumElements',2,...
-    'Radius',rxRad);
+rxRad = lambda/2;
 
+rxRad = .5*feet2meter;
+recvArray = phased.ULA('Element',antElmnt,'NumElements',3,...
+    'ElementSpacing',rxRad);
+
+
+%
+% pattern(recvArray,fc,[-180:180],0,'PropagationSpeed',c,...
+%         'Type','powerdb')
+
+
+
+% recvArray = phased.ULA('Element',antElmnt,'NumElements',6,...
+%     'ElementSpacing',rxRad);
 % Half-power beamwidth of the receive array
 % hpbw = beamwidth(rxArray,fc,'PropagationSpeed',c);
 
@@ -55,7 +87,7 @@ rxNF = 4.5;                                   % Receiver noise figure (dB)
 transmitter = phased.Transmitter('PeakPower',txPkPower,'Gain',txGain);
 
 % Radiator for single transmit element
-radiator = phased.Radiator('Sensor',antElmnt,'OperatingFrequency',fc);
+radiator = phased.Radiator('Sensor',sendElmnt,'OperatingFrequency',fc);
 
 % Collector for receive array
 collector = phased.Collector('Sensor',recvArray,'OperatingFrequency',fc);
@@ -64,7 +96,7 @@ collector = phased.Collector('Sensor',recvArray,'OperatingFrequency',fc);
 receiver = phased.ReceiverPreamp('Gain',rxGain,'NoiseFigure',rxNF,...
     'SampleRate',fs);
 
-%Set up radar transciever with Tx as single Dipole and Rx as UCA. 
+%Set up radar transciever with Tx as single Dipole and Rx as UCA.
 radar = radarTransceiver('Waveform',waveform,'Transmitter',transmitter,...
     'TransmitAntenna',radiator,'ReceiveAntenna',collector,'Receiver',receiver);
 
@@ -75,30 +107,33 @@ channel = phased.FreeSpace(...
     'SampleRate',fs,'MaximumDistanceSource','Property','MaximumDistance',range_max);
 
 
-
-%% Target Def
-
-target = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',0.5, ...
-    'PropagationSpeed',physconst('LightSpeed'),'OperatingFrequency',fc);
+%% AntennaPlatform
 
 antennaplatform = phased.Platform('InitialPosition',[0;0;0],'Velocity',[0;0;0]);
 
 
-initTgtPos = [10; 0; 0]; %The initial position of the target
 
-beamformer = phased.PhaseShiftBeamformer('SensorArray',recvArray,...
-    'PropagationSpeed',c,'OperatingFrequency',fc,'Direction',[0;0]);
+%% Clutter Platforms
+targetRCS = .5;
+numClutter = 2;
+
+xyzPoses = [[10,0,0] ; [10,10,0]];
+[clutter,clutterPlatform]=setupBackClutter(xyzPoses,numClutter,clutterRCS,fc);
 
 
 %% Target movement setup
+initTgtPos = [10; 0; 0]; %The initial position of the target
+
+target = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',targetRCS, ...
+    'PropagationSpeed',physconst('LightSpeed'),'OperatingFrequency',fc);
 
 x0 = 10;
 y0 = 0;
-z0 = 0;   
+z0 = 0;
 fsChest = 2000;                   % samples per second
 dt = 1/fsChest;                   % seconds per sample
-StopTime = 20; 
-t = (0:dt:StopTime-dt)'; 
+StopTime = 8;
+t = (0:dt:StopTime-dt)';
 y = y0*ones(size(t));
 z = z0*ones(size(t));
 
@@ -111,9 +146,24 @@ sigN2 = 0; % db SNR
 %estimated freqeuncies to the actual ones. This is our metric!
 [~,ct,vt,frActual,fhActual] = getChestCompression(fsChest,[],length(t),sigN2,0,offset,respHeight,heartRatio);
 
-%Put the movement data into the trajectory for the target platform. 
-wpts = [t';ct; y'; z']'; 
+%Put the movement data into the trajectory for the target platform.
+wpts = [t';ct; y'; z']';
 targetplatform = phased.Platform('MotionModel','Custom','CustomTrajectory',wpts);
+
+
+
+%% New Target Setup
+ tgt1 = struct('Position',[0 5e3 0],'Velocity',[0 0 0]);tgt2 = struct('Position',[10e3 0 0],'Velocity',[0 0 0]);tgt = [tgt1 tgt2];
+
+
+
+
+
+%% BeamFormer
+
+beamformer= phased.PhaseShiftBeamformer('SensorArray',recvArray,...
+    'PropagationSpeed',c,'OperatingFrequency',fc,'Direction',[0;0],'WeightsOutputPort',true);
+
 %% Simulation start
 
 
@@ -136,6 +186,20 @@ TchestSample = 1/fsChest;
 reflectedSig = zeros(Nft,Nsweep);
 cc=1;
 reflectedPhase = zeros(1,Nsweep);
+% txpos = [-5,0,0]'
+
+L = 1334;
+freq_res = fs/L; %The freqeucny resolution is depentant on the sampling frequency and number of FFT points
+freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn this into range
+
+rangeVec = beat2range(freqGrid,sweepSlope)';
+idmaxSave = zeros(1,Nsweep);
+
+
+
+
+
+
 
 for m = 1:Nsweep
     
@@ -164,11 +228,90 @@ for m = 1:Nsweep
     %     ULA though and we are now dealing with UCA. Beamforming is slightly
     %     different and is ignored for now.
     
-    reflectedSig(:,m) = beamformer(rxsig); %Beam form the response
+    
+    if sum(clutterRCS) ~= 0
+        [summedSig] = updateClutter(clutter,clutterPlatform,txpos,waveform,transmitter,radiator,channel,collector,receiver);
+        tSig = rxsig + summedSig;
+    else
+        tSig = rxsig;
+    end
+    
+    [beamfromedResponse,beamWeights]=beamformer(tSig);
+    reflectedSig(:,m) = beamfromedResponse; %Beam form the response
     
     
-    reflectedPhase(m) =  angle(max(fft(reflectedSig(:,m)))); %Calculate the phase of the reflected signal AT the beat freqeuncy ONLY!!
+    
+    [tpfft]=fft(beamformer(rxsig));
+    if m<100
+    [maxFFT,idMax] = max(abs(tpfft));
+    end
+    
+    
+    
+    
+    if m==100
+        idRunAvg =  mean(idmaxSave(1:m-1));
+        idMax = round(idRunAvg);
+    end
+    
+    idmaxSave(m) = idMax;
+    reflectedFFT = fft(reflectedSig(:,m));
+    
+    
+    
+    idMax = idMax + beatError;
+    if idMax<1
+        idMax = 1;
+    end
+    if idMax>length(reflectedFFT)
+        idMax = length(reflectedFFT);
+    end
+    reflectedPhase(m) =  angle(reflectedFFT(idMax)); %Calculate the phase of the reflected signal AT the beat freqeuncy ONLY!!
+    
+    
+    
+    
+    
+    
+    
+    %     plot(rangeVec,abs(reflectedFFT)/max(abs(reflectedFFT)))
+    %     title('FFT of Response')
+    %     xlabel('Distance')
+    %     ylabel('Magnitude')
+    %     xlim([0,25])
+  
+    %     if m==1
+    %         jct.plotting.gif('fftGif.gif','DelayTime',1/8,'frame',gcf)
+    %     elseif  mod(m,50) ==0;
+    %         plot(rangeVec,abs(reflectedFFT)/max(abs(reflectedFFT)))
+    %         title('FFT of Response')
+    %         xlabel('Distance')
+    %         ylabel('Magnitude')
+    %         xlim([0,25])
+    %         jct.plotting.gif
+    %         if m == (50*200)
+    %             q=1
+    %         end
+    %     end
+    
+    
+    %Calculate Range Angle
+
+    
+    
+    
 end
+
+
+% rngdopresp = phased.RangeDopplerResponse('PropagationSpeed',c,...
+%     'DopplerOutput','Speed','OperatingFrequency',fc,'SampleRate',fs,...
+%     'RangeMethod','FFT','SweepSlope',sweepSlope,...
+%     'RangeFFTLengthSource','Property','RangeFFTLength',2048,...
+%     'DopplerFFTLengthSource','Property','DopplerFFTLength',256);
+%
+% clf;
+% plotResponse(rngdopresp,reflectedSig(:,1:200));
+% ylim([0,25])
 
 
 
@@ -180,13 +323,13 @@ chestSig = lambda*reflectedPhase /(4*pi);
 
 
 %% IQ dmodulation
-% 
+%
 % phi = unwrap(atan2(imag(reflectedSig),real(reflectedSig))); %Calcuate the phase of the reflected signal.
-% 
+%
 % phiSig = min(phi); %The min phase is the reflected signal.
 
 
- %The chest signal is realted to the phase of the reflection (see source 1)
+%The chest signal is realted to the phase of the reflection (see source 1)
 PlotChest = 0; %only plot chest signal if this is a 1. This is a debug thing
 if PlotChest
     
@@ -195,6 +338,7 @@ if PlotChest
     title('Phase signal Converted to c(t) vs Time')
     ylabel('c(t)')
     xlabel('time (s)')
+    
 end
 % ctEst = chestSig(tidx,:);
 
@@ -209,7 +353,7 @@ fhError = abs(fh-fhActual);
 %% Calculate Range Estimate plot (Only works with High Band width (.5 GHz)
 calcRangePlot = 0; %Only cacluate range Plot if needed. Do not need to for MC trials. It is only a diagonstic.
 if calcRangePlot
-    L = 2048;
+    L = size(reflectedSig,1);
     freq_res = fs/L; %The freqeucny resolution is depentant on the sampling frequency and number of FFT points
     freqGrid = (0:L/2).'*freq_res; %This is the beat frequency vector. Need to turn this into range
     

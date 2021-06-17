@@ -35,16 +35,31 @@ function [fr,fh] = estFreqs(ct,fs)
         ctHeart = ctHeart/max(ctHeart);
         
         %Take the FFT of the resp rate filtered signals
-%         [fftResp,f] =easyFFT(ctResp,fs,Npt);
-%         [fftHeart,~] = easyFFT(ctHeart,fs,Npt);
-        [fftTotal,f] = easyFFT(ct,fs,Npt);
+        [fftResp,f] =easyFFT(ctResp,fs,Npt);
+        [fftHeart,~] = easyFFT(ctHeart,fs,Npt);
+%         [fftTotal,f] = easyFFT(ct,fs,Npt);
+        
+        
         %Find the index of the highest power part of the FFT
         % This should be the to the respitory signal only
         % then find the freqeuncy that correspondes to it it
         % This will be the estimated respitory rate in Hz.
         % This will get done for the raw reflected signal and the LMS
         % filtered signal
+      
+
+        [~,maxIdx] = max(abs(fftResp));
+        fr = abs(f(maxIdx));
         
+        [~,maxIdx] = max(abs(fftHeart));
+        fh = abs(f(maxIdx));
+        t=1
+end
+
+
+%{ 
+Ignore this pleae
+  
         
         %Use the find peaks tool to find all of the peaks
         [pks,locs] = findpeaks(abs(fftTotal));
@@ -55,21 +70,26 @@ function [fr,fh] = estFreqs(ct,fs)
         %Remove any duplicates (force single side band)
         pks = unique(pks);
         
+        
+        fSort = locs(sortIDx);
+        fSort=f(fSort);
+        fSort = fSort(fSort>0);
+        fSort = fSort(end-5:end);
+        pks = pks(end-5:end);
+        
+        pks = pks(fSort>.1);
+        
         %Fr is the highest amplitude FFT value so the freqeuncy value that
         %coresponds to the highest peak should be the Fr result. 
         fr = f((abs(fftTotal) == pks(end)));
         fr = abs(fr(end));
-        
+
+
         %fh should be the second highest FFT value, so the freq value that
         %coresponds to the second highest peak should be the Fh result. 
         fh = f((abs(fftTotal) == pks(end-1)));
         fh = abs(fh(end));
 %         
 %         locs=locs(sortIDx);
-%         [~,maxIdx] = max(abs(fftResp));
-%         fr = abs(f(maxIdx));
-%         
-%         [~,maxIdx] = max(abs(fftHeart));
-%         fh = abs(f(maxIdx));
-end
 
+%}

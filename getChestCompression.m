@@ -80,6 +80,7 @@ fh = a + (b-a).*rand;
 
 ar = respHeight;
 ah = respHeight*heartRatio;
+ah = heartRatio;
 %ar is the amplitude of the respitory siganl
 %ah is the ampllitude of the heart beat signal.
 % ar and ah are chosen such that ah is much lower than ar

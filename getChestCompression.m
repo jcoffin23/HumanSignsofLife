@@ -85,7 +85,10 @@ ah = heartRatio;
 %ah is the ampllitude of the heart beat signal.
 % ar and ah are chosen such that ah is much lower than ar
 
-
+%Get Random phase between 0 and 360 degrees
+a=0; %Phase min
+b=2*pi;%phase max
+respPhase = a + (b-a).*rand; %Random Phase for respitory signal
 
 if N == -1
     t = 0:1/fs:T;
@@ -107,7 +110,7 @@ if snrFlag
 end
 nt = sqrt(sigN2)*randn(size(t));
 
-ct = ar*sin(2*pi*fr*t) + ah*sin(2*pi*fh*t) + nt + ctOffset;
+ct = ar*sin(2*pi*fr*t+respPhase) + ah*sin(2*pi*fh*t) + nt + ctOffset;
 % ct = ar*exp(j*2*pi*fr*t) + .1*ah*exp(j*2*pi*fh*t) + nt;
 %For some simulations we need the velocity of the compression signal.
 % Simple dearitive will work here

@@ -40,10 +40,10 @@ heartRoc = zeros(1,numVar);%Finial ROC curve for heart rate error
 %% Set up Defaults 
 
 
-fc = 15e9;
+fc = 5e9;
 % bw = .18*10^9;
 
-bw = 2e9;
+bw = .18e9;
 rxRad = 0.5; 
 beatError = 0;
 

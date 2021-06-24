@@ -41,14 +41,10 @@ heartRoc = zeros(1,numVar);%Finial ROC curve for heart rate error
 %% Set up Defaults 
 
 
-fc = 15e9;
+fc = 5e9;
 % bw = .18*10^9;
 
-<<<<<<< Updated upstream
-bw = 2e9;
-=======
 bw = .5e9;
->>>>>>> Stashed changes
 rxRad = 0.5; 
 beatError = 0;
 
@@ -82,7 +78,7 @@ tic
 
 
 thetaDist = varVector(k);
-thetaDist = 8
+thetaDist = 25;
 
 for trialNum = 1:numMCTrials
    

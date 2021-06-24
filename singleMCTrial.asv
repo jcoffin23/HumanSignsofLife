@@ -28,7 +28,7 @@ showPlot = 0;
 
 waveform = phased.FMCWWaveform('SweepTime',tm,'SweepBandwidth',bw,...
     'SampleRate',fs);
-
+sig = waveform();
 
 rangeRes = bw2range(bw); %Calculate the Range Resolution for the input bandwidth
 %% Array
@@ -59,7 +59,7 @@ Ne = 1;
 
 rxRad = .5*feet2meter;
 
-NumeleMents = 2;
+NumeleMents = 20;
 
 recvArray = phased.ULA('Element',antElmnt,'NumElements',NumeleMents,...
     'ElementSpacing',rxRad);
@@ -188,8 +188,6 @@ targetplatform = phased.Platform('MotionModel','Custom','CustomTrajectory',wpts)
 offset2 = 17;
 
 
-<<<<<<< Updated upstream
-=======
 %Put the movement data into the trajectory for the target platform.
 
 
@@ -206,7 +204,6 @@ y2 = y + yPoint;
 wpts2 = [t';ct2; y2'; z']';
 targetplatform2 = phased.Platform('MotionModel','Custom','CustomTrajectory',wpts2);
 
->>>>>>> Stashed changes
 
 %% New Target Setup
  tgt1 = struct('Position',[0 5e3 0],'Velocity',[0 0 0]);tgt2 = struct('Position',[10e3 0 0],'Velocity',[0 0 0]);tgt = [tgt1 tgt2];
@@ -251,81 +248,69 @@ freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn 
 rangeVec = beat2range(freqGrid,sweepSlope)';
 idmaxSave = zeros(1,Nsweep);
 
+humanRCSVal = 1;
+humanRCSobj = rcsSignature('Frequency',[0,fc+2*bw],'Pattern',[humanRCSVal])
 
+clutTgtRcsObj1 = rcsSignature('Frequency',[0,fc+2*bw],'Pattern',[clutterRCS])
 
-
-
-
+humanTgt = struct('Position',targetplatform.CustomTrajectory(1,2:end)','Velocity',[0 0 0]','Signatures',humanRCSobj);
+humanTgt2 = struct('Position',targetplatform2.CustomTrajectory(1,2:end)','Velocity',[0 0 0]','Signatures',humanRCSobj);
+ clutTgt1 = struct('Position',[14 0 0]','Velocity',[0 0 0]','Signatures',clutTgtRcsObj1);
+ 
+    tgt = [humanTgt,humanTgt2 clutTgt1];
+numTgt = size(tgt,2);
+reflectedPhase = zeros(numTgt,Nsweep);
 
 for m = 1:Nsweep
     
     % Update the target position
-    [tgtpos,tgtvel] = targetplatform(TchestSample);
-    % Get the range and angle to the target
-    [tgtrng,tgtang] = rangeangle(tgtpos,txpos);
-    % Generate the pulse
-    refSig = waveform();
-    % Transmit the pulse. Output transmitter status
-    [sig] = transmitter(refSig);
-    % Radiate the pulse toward the target
-    sig = radiator(sig,tgtang);
-    % Propagate the pulse to the target in free space
-    sig = channel(sig,txpos,tgtpos,[0;0;0],tgtvel);
-    % Reflect the pulse off the target
-    sig = target(sig);
-    % Propagate the echo to the antenna in free space
-    sig = channel(sig,tgtpos,txpos,tgtvel,[0;0;0]);
-    % Collect the echo from the incident angle at the antenna
-    sig = collector(sig,tgtang);
-    % Receive the echo at the antenna when not transmitting
-    rxsig = receiver(sig);
-    rxsig = dechirp(rxsig,refSig); %This mixxes the tx signal with the RX signal. the frequency of this is what gives range
-    %     y = (w'*rxsig.').'; %This is my attempt at beamforming. This is for
-    %     ULA though and we are now dealing with UCA. Beamforming is slightly
-    %     different and is ignored for now.
-    
-    
-    if sum(clutterRCS) ~= 0
-        [summedSig] = updateClutter(clutter,clutterPlatform,txpos,waveform,transmitter,radiator,channel,collector,receiver);
-        tSig = rxsig + summedSig;
-    else
-        tSig = rxsig;
-    end
-    
-    [beamfromedResponse,beamWeights]=beamformer(tSig);
+    [~,tgtvel] = targetplatform(tm);
+    [~,tgtvel2] = targetplatform2(tm);
+    humanTgt = struct('Position',targetplatform.CustomTrajectory(m,2:end)','Velocity',tgtvel,'Signatures',humanRCSobj);
+    humanTgt2 = struct('Position',targetplatform2.CustomTrajectory(m,2:end)','Velocity',tgtvel2,'Signatures',humanRCSobj);
+    tgt = [humanTgt,humanTgt2 clutTgt1];
+     
+     rxsig = radar(tgt,m*tm);
+     
+     
+     rxsig = dechirp(rxsig,sig);
+%     if sum(clutterRCS) ~= 0
+%         [summedSig] = updateClutter(clutter,clutterPlatform,txpos,waveform,transmitter,radiator,channel,collector,receiver);
+%         tSig = rxsig + summedSig;
+%     else
+%         tSig = rxsig;
+%     end
+%     
+    [beamfromedResponse,beamWeights]=beamformer(rxsig);
     reflectedSig(:,m) = beamfromedResponse; %Beam form the response
     
     
-    
-    [tpfft]=fft(beamformer(rxsig));
+    reflectedFFT = fft(beamfromedResponse);
     if m<100
-    [maxFFT,idMax] = max(abs(tpfft));
+    [maxFFT,idMax] = max(abs(reflectedFFT));
     end
-    
-    
-    
+    idmaxSave(m) = idMax;
     
     if m==100
         idRunAvg =  mean(idmaxSave(1:m-1));
         idMax = round(idRunAvg);
+        
+        meanfft = fft(mean(reflectedSig(:,1:m),2));
+        [pks,locs] = findpeaks(abs(meanfft));
+        [pks,sortIdx]=sort(pks);
+        locs=locs(sortIdx);
+        
+        pks = pks(end-2:end);
+        phaseExtractPoints = locs(end-2:end);
+        
+        
     end
     
-    idmaxSave(m) = idMax;
-    reflectedFFT = fft(reflectedSig(:,m));
+    if m>100
+    reflectedPhase(:,m) =  (angle(reflectedFFT(phaseExtractPoints))); %Calculate the phase of the reflected signal AT the beat freqeuncy ONLY!!
     
     
-    
-    idMax = idMax + beatError;
-    if idMax<1
-        idMax = 1;
     end
-    if idMax>length(reflectedFFT)
-        idMax = length(reflectedFFT);
-    end
-    reflectedPhase(m) =  angle(reflectedFFT(idMax)); %Calculate the phase of the reflected signal AT the beat freqeuncy ONLY!!
-    
-    
-    
     
     
     
@@ -359,17 +344,6 @@ for m = 1:Nsweep
 end
 
 
-% rngdopresp = phased.RangeDopplerResponse('PropagationSpeed',c,...
-%     'DopplerOutput','Speed','OperatingFrequency',fc,'SampleRate',fs,...
-%     'RangeMethod','FFT','SweepSlope',sweepSlope,...
-%     'RangeFFTLengthSource','Property','RangeFFTLength',2048,...
-%     'DopplerFFTLengthSource','Property','DopplerFFTLength',256);
-%
-% clf;
-% plotResponse(rngdopresp,reflectedSig(:,1:200));
-% ylim([0,25])
-
-
 
 %% Calculate Phase and then Displacement
 
@@ -391,24 +365,17 @@ if PlotChest
     cnt=1;
     str = {};
     figure
-<<<<<<< Updated upstream
-    plot(t,chestSig)
-=======
     for plotIdx = numTgt:-1:1
     plot(t,chestSig(plotIdx,:))
     hold on
     str{cnt}=['Target ',num2str(cnt)]
     cnt=cnt+1;
     end
->>>>>>> Stashed changes
     title('Phase signal Converted to c(t) vs Time')
     ylabel('c(t)')
     xlabel('time (s)')
     
-<<<<<<< Updated upstream
-=======
   legend(str)
->>>>>>> Stashed changes
 end
 % ctEst = chestSig(tidx,:);
 
@@ -430,7 +397,7 @@ calcRangePlot = 0; %Only cacluate range Plot if needed. Do not need to for MC tr
 if calcRangePlot
     L = size(reflectedSig,1);
     freq_res = fs/L; %The freqeucny resolution is depentant on the sampling frequency and number of FFT points
-    freqGrid = (0:L/2).'*freq_res; %This is the beat frequency vector. Need to turn this into range
+    freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn this into range
     
     rangeVec = beat2range(freqGrid,sweepSlope); %Turn beat freqeuncies into range (see documentation for how this works, simple multiply)
     
@@ -439,7 +406,7 @@ if calcRangePlot
     
     rngDat = fft(reflectedSig,L,1); %Calculated beat Frequencies using FFT
     
-    rngDat = rngDat(1:L/2+1,:); %Take only positive Freqencies
+    rngDat = rngDat(1:L,:); %Take only positive Freqencies
     
 %     
     figure
@@ -452,24 +419,38 @@ if calcRangePlot
     ylim([0,25])
     % caxis([-10,5])
     % caxis([0,10])
-<<<<<<< Updated upstream
-end
-
-
-
-=======
 % jct.util.SavetoPng(['Range vs time (',num2str(NumeleMents), ' Antenna Elements).png'])
 
 %% Build Doppler Info 
 showDop = 0;
->>>>>>> Stashed changes
+
+if showDop
+    
+ds = 5000;
+N = 10*ds;
+TF = ds*tm;
+
+dopMax = lambda/(4*tm);
+dopRes = lambda/(2*N*tm);
+% Se page 40 of TI pdf that is linked below
+% https://training.ti.com/sites/default/files/docs/mmwaveSensing-FMCW-offlineviewing_4.pdf
+dopVec = -dopMax:dopRes:dopMax-dopRes;
+toDop = rngDat(:,1:ds);
 
 
 
+dopResp = fftshift(fft(toDop,N,2),2);
 
 
-
-
+figure
+imagesc(dopVec,rangeVec,abs(dopResp)) %Plot FFT data vs time and Beat range
+title('Range vs Doppler')
+xlabel('Doppler Speed (m/s)')
+ylabel('Range Estimate')
+ylim([0,15])
+xlim([-100,100])
+end
+end
 
 end
 

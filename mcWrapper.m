@@ -26,13 +26,13 @@ lambda = c/fc;
 % varVector = logspace(-1,-6,20);
 
 % varVector = lambda/2
-varVector = .5;
+varVector = 20:-1:10;
 % varVector = varVector(2:end);
 
 % varVector = -20:1:20
 % varVector = linspace(.1e9,2e9,20);
 numVar = length(varVector); %Find out how long it is
-numMCTrials = 1; %How many MC trials to average over per varVec value. Total number of runs is numMCtrials * numVar
+numMCTrials = 5; %How many MC trials to average over per varVec value. Total number of runs is numMCtrials * numVar
 respRoc = zeros(1,numVar);%This is the finial ROC curve for respitory error
 heartRoc = zeros(1,numVar);%Finial ROC curve for heart rate error
 
@@ -41,9 +41,9 @@ heartRoc = zeros(1,numVar);%Finial ROC curve for heart rate error
 
 
 fc = 5e9;
-% bw = .18*10^9;
+bw = .18*10^9;
 
-bw = .18e9;
+% bw = .5e9;
 rxRad = 0.5; 
 beatError = 0;
 
@@ -51,7 +51,7 @@ beatError = 0;
 % Heart heightis about .2-.5mm
 heartRatio = .5*10^-3; %Heart rate is 30 percent of the respitory rate. 
 respHeight = 10 * 10^-3;
-
+clutterRCS = .5;
 %% Variable Loop
 % This outer loop will change the variable being tested over. 
 
@@ -67,7 +67,8 @@ tic
 %     respHeight = varVector(k); 
 % rxRad = varVector(k);
 % heartRatio = varVector(k);
-clutterRCS = varVector(k);
+% clutterRCS = varVector(k);
+stv = varVector(k);
 % beatError = varVector(k);
 % clutterRCS = 0;
 %% Loop same conditions over 10 trials
@@ -76,7 +77,7 @@ for trialNum = 1:numMCTrials
    
 
    
-    [RespErrVec(trialNum),HeartErrVec(trialNum),~] = singleMCTrial(fc,bw,rxRad,respHeight,heartRatio,beatError,clutterRCS);
+    [RespErrVec(trialNum),HeartErrVec(trialNum),~] = singleMCTrial(fc,bw,rxRad,respHeight,heartRatio,beatError,clutterRCS,stv);
     
     
 end
@@ -89,11 +90,11 @@ end
 %% Plotting
 %Plot the two curves, the labels and title need to be changed to match the
 %variable that was changed. 
-figure
 plot(varVector,heartRoc)
-title('Heart Rate Error vs RCS of Scatter (3 Background Targets)')
+figure
+title('Heart Rate Error vs SNR')
 ylabel('Error (Hz)')
-xlabel('BW (GHz)')
+xlabel('SNR (dB)')
 % ylim([0,1])
 
 
@@ -101,7 +102,7 @@ figure
 
 
 plot(varVector,respRoc)
-title('Respiratory Rate Error vs RCS of Scatter (3 Background Targets)')
+title('Respiratory Rate Error vs SNR')
 ylabel('Error (Hz)')
 % ylim([0,.015])
-xlabel('BW (GHz)')
+xlabel('SNR (dB)')

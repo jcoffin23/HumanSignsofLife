@@ -1,4 +1,4 @@
-function [frError,fhError,rangeRes] = singleMCTrial(fc,bw,rxRad,respHeight,heartRatio,beatError,clutterRCS)
+function [frError,fhError,rangeRes] = singleMCTrial(fc,bw,rxRad,respHeight,heartRatio,beatError,clutterRCS,snr)
 %% Constants
 
 feet2meter  = 0.3048;% 1 foot is this many meters.
@@ -41,12 +41,10 @@ sendElmnt = phased.IsotropicAntennaElement('BackBaffled',true);
 
 
 
-directionalInPut = 5;
+directionalInPut = 10;
 antElmnt = phased.CosineAntennaElement('CosinePower',[1,directionalInPut]);
 %
-% resp = antElmnt(fc,[0;0]);
-% pattern(antElmnt,fc,0,-90:90,'Type','powerdb','CoordinateSystem','polar')
-% %
+
 
 
 
@@ -56,24 +54,32 @@ antElmnt = phased.CosineAntennaElement('CosinePower',[1,directionalInPut]);
 % Construct the receive array (UCA of two elements. One at -.5 the other at
 % +.5. SO this is centered arround the TX array.
 Ne = 1;
-rxRad = lambda/2;
+% rxRad = lambda/2;
 
 rxRad = .5*feet2meter;
-recvArray = phased.ULA('Element',antElmnt,'NumElements',3,...
+
+NumeleMents = 2;
+
+recvArray = phased.ULA('Element',antElmnt,'NumElements',NumeleMents,...
     'ElementSpacing',rxRad);
 
 
-%
-% pattern(recvArray,fc,[-180:180],0,'PropagationSpeed',c,...
-%         'Type','powerdb')
+% %
+% [pat,az,elv] = pattern(recvArray,fc,-180:.1:180,0);
+% % figure
+% plot(az,pat)
+% hold on
+% resp = antElmnt(fc,[0;0]);
+% antpat=pattern(antElmnt,fc,-180:.1:180,0)
+% plot(az,antpat)
+% title(['Beam pattern 20 Elements, Element spacing = ',num2str(rxRad),' meters'])
+% legend('Beamformed Response','Single antenna Response')
+% xlabel('Degrees')
+% ylabel('Response Magnitude (dB)')
 
 
 
-% recvArray = phased.ULA('Element',antElmnt,'NumElements',6,...
-%     'ElementSpacing',rxRad);
-% Half-power beamwidth of the receive array
-% hpbw = beamwidth(rxArray,fc,'PropagationSpeed',c);
-
+%% 
 antAperture =6.06e-4;                        % Antenna aperture (m^2)
 antGain = aperture2gain(antAperture,lambda);  % Antenna gain (dB)
 
@@ -151,12 +157,23 @@ wpts = [t';ct; y'; z']';
 targetplatform = phased.Platform('MotionModel','Custom','CustomTrajectory',wpts);
 
 
-[~,ct2,vt2,frActual2,fhActual2] = getChestCompression(fsChest,[],length(t),sigN2,0,7,respHeight,heartRatio);
+thetaDir=43
+[human2XOffset,human2yOffset]=pol2cart(deg2rad(thetaDir),15);
 
-%Put the movement data into the trajectory for the target platform.
-wpts2 = [t';ct2; y'; z']';
+[~,ct2,vt2,frActual2,fhActual2] = getChestCompression(fsChest,[],length(t),sigN2,0,human2XOffset,respHeight,heartRatio);
+
+
+wpts2 = [t';ct2; y' + human2yOffset; z']';
 targetplatform2 = phased.Platform('MotionModel','Custom','CustomTrajectory',wpts2);
 
+
+% xPath = zeros(size(t));
+thetaWalk = linspace(-90,90,length(t));
+[xoff,yoff]=pol2cart(deg2rad(thetaWalk),5);
+
+yPath = linspace(5,15,length(t));
+wpts3 = [t';xoff; yoff; z']';
+targetplatform3 = phased.Platform('MotionModel','Custom','CustomTrajectory',wpts3);
 
 %% New Target Setup
  tgt1 = struct('Position',[0 5e3 0],'Velocity',[0 0 0]);tgt2 = struct('Position',[10e3 0 0],'Velocity',[0 0 0]);tgt = [tgt1 tgt2];
@@ -168,7 +185,7 @@ targetplatform2 = phased.Platform('MotionModel','Custom','CustomTrajectory',wpts
 %% BeamFormer
 
 beamformer= phased.PhaseShiftBeamformer('SensorArray',recvArray,...
-    'PropagationSpeed',c,'OperatingFrequency',fc,'Direction',[0;0],'WeightsOutputPort',true);
+    'PropagationSpeed',c,'OperatingFrequency',fc,'WeightsOutputPort',true,'DirectionSource','Input port');
 
 %% Simulation start
 
@@ -202,15 +219,16 @@ rangeVec = beat2range(freqGrid,sweepSlope)';
 idmaxSave = zeros(1,Nsweep);
 
 humanRCSVal = 1;
-humanRCSobj = rcsSignature('Frequency',[0,fc+2*bw],'Pattern',[humanRCSVal])
+humanRCSobj = rcsSignature('Frequency',[0,fc+2*bw],'Pattern',[humanRCSVal]);
 
-clutTgtRcsObj1 = rcsSignature('Frequency',[0,fc+2*bw],'Pattern',[clutterRCS])
+clutTgtRcsObj1 = rcsSignature('Frequency',[0,fc+2*bw],'Pattern',[clutterRCS]);
 
 humanTgt = struct('Position',targetplatform.CustomTrajectory(1,2:end)','Velocity',[0 0 0]','Signatures',humanRCSobj);
 humanTgt2 = struct('Position',targetplatform2.CustomTrajectory(1,2:end)','Velocity',[0 0 0]','Signatures',humanRCSobj);
- clutTgt1 = struct('Position',[14 0 0]','Velocity',[0 0 0]','Signatures',clutTgtRcsObj1);
+clutTgt1 = struct('Position',targetplatform3.CustomTrajectory(1,2:end)','Velocity',[0 0 0]','Signatures',clutTgtRcsObj1);
  
     tgt = [humanTgt,humanTgt2 clutTgt1];
+    tgt = [humanTgt];
 numTgt = size(tgt,2);
 reflectedPhase = zeros(numTgt,Nsweep);
 
@@ -219,10 +237,13 @@ for m = 1:Nsweep
     % Update the target position
     [~,tgtvel] = targetplatform(tm);
     [~,tgtvel2] = targetplatform2(tm);
+    [~,tgtvel3] = targetplatform3(tm);
     humanTgt = struct('Position',targetplatform.CustomTrajectory(m,2:end)','Velocity',tgtvel,'Signatures',humanRCSobj);
     humanTgt2 = struct('Position',targetplatform2.CustomTrajectory(m,2:end)','Velocity',tgtvel2,'Signatures',humanRCSobj);
+    clutTgt1 = struct('Position',targetplatform3.CustomTrajectory(m,2:end)','Velocity',tgtvel3,'Signatures',clutTgtRcsObj1);
+ 
     tgt = [humanTgt,humanTgt2 clutTgt1];
-     
+      tgt = [humanTgt]; %For testing noise remove for multi target
      rxsig = radar(tgt,m*tm);
      
      
@@ -234,7 +255,14 @@ for m = 1:Nsweep
 %         tSig = rxsig;
 %     end
 %     
-    [beamfromedResponse,beamWeights]=beamformer(rxsig);
+%     beamVec = [-90:.1:90;zeros(1,1801)]
+    [beamfromedResponse,beamWeights]=beamformer(rxsig,[0;0]);
+    tpResponse = fft(beamfromedResponse);
+    
+    maxtp = max(abs(tpResponse));
+    noiseMult = db2pow(-snr)*maxtp;
+    
+    beamfromedResponse =  beamfromedResponse + noiseMult*randn(size(beamfromedResponse));      
     reflectedSig(:,m) = beamfromedResponse; %Beam form the response
     
     
@@ -254,8 +282,8 @@ for m = 1:Nsweep
         locs=locs(sortIdx);
         
         pks = pks(end-2:end);
-        phaseExtractPoints = locs(end-2:end);
-        
+        phaseExtractPoints = locs(end-1:end);
+        phaseExtractPoints = locs(end);
         
     end
     
@@ -266,13 +294,13 @@ for m = 1:Nsweep
     end
     
     
-    
-    
-    %     plot(rangeVec,abs(reflectedFFT)/max(abs(reflectedFFT)))
-    %     title('FFT of Response')
-    %     xlabel('Distance')
-    %     ylabel('Magnitude')
-    %     xlim([0,25])
+%     
+%     
+%         plot(rangeVec,abs(reflectedFFT)/max(abs(reflectedFFT)))
+%         title('FFT of Response')
+%         xlabel('Distance')
+%         ylabel('Magnitude')
+%         xlim([0,25])
   
     %     if m==1
     %         jct.plotting.gif('fftGif.gif','DelayTime',1/8,'frame',gcf)
@@ -300,7 +328,7 @@ end
 
 %% Calculate Phase and then Displacement
 
-reflectedPhase = unwrap(reflectedPhase);
+reflectedPhase = unwrap(reflectedPhase,[],2);
 chestSig = lambda*reflectedPhase /(4*pi);
 
 
@@ -316,25 +344,22 @@ chestSig = lambda*reflectedPhase /(4*pi);
 PlotChest = 0; %only plot chest signal if this is a 1. This is a debug thing
 if PlotChest
     
+    cnt=1;
+    str = {};
     figure
-    plot(t,chestSig(2,:))
+    plot(t,chestSig)
+    for plotIdx = numTgt:-1:1
+    plot(t,chestSig(plotIdx,:))
+    hold on
+    str{cnt}=['Target ',num2str(cnt)]
+    cnt=cnt+1;
+    end
+
     title('Phase signal Converted to c(t) vs Time')
     ylabel('c(t)')
     xlabel('time (s)')
 
-    
-     figure
-    plot(t,chestSig(1,:))
-    title('Phase signal Converted to c(t) vs Time')
-    ylabel('c(t)')
-    xlabel('time (s)')
-    
-    
-     figure
-    plot(t,chestSig(3,:))
-    title('Phase signal Converted to c(t) vs Time')
-    ylabel('c(t)')
-    xlabel('time (s)')
+  legend(str)
     
     
 end
@@ -343,10 +368,10 @@ end
 
 
 
-[fr,fh] = estFreqs(chestSig-mean(chestSig),fsChest); %Estimate the freqeuncy of the chest sig (Must be DC so zero frequency does not have as much power
+[fr3,fh3] = estFreqs(chestSig(1,:)-mean(chestSig(1,:)),fsChest); %Estimate the freqeuncy of the chest sig (Must be DC so zero frequency does not have as much power
 
-frError = abs(fr-frActual);
-fhError = abs(fh-fhActual);
+frError = min(abs(fr3-frActual));
+fhError = min(abs(fh3-fhActual));
 
 %% Calculate Range Estimate plot (Only works with High Band width (.5 GHz)
 calcRangePlot = 0; %Only cacluate range Plot if needed. Do not need to for MC trials. It is only a diagonstic.
@@ -371,10 +396,10 @@ if calcRangePlot
     
     title('Range vs time')
     xlabel('Time (s)')
+% xlabel('Angle to Second Target')
     ylabel('Range Estimate')
     ylim([0,25])
-    % caxis([-10,5])
-    % caxis([0,10])
+
 
 
 %% Build Doppler Info 

@@ -64,7 +64,7 @@ for k = 1:numTgt
 %     fwAng(1) = 180-fwAng(1);
 %     bkAng(1) = 180+bkAng(1);
     %Calculate target reflections
-    sigtgt(:,k) = targets{k}(rxSig);
+    sigtgt(:,k) = targets{k}(rxSig(:,k));
 end
 %Simulate prop from target to recv
 rxSig = rxchannel(sigtgt,tgtPos,rxPos,tgtVel,rxVel); 

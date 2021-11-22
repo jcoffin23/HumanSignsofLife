@@ -210,6 +210,24 @@ for m = 1:Nsweep
 %         phaseExtractPoints = locs(end-1:end);
         phaseExtractPoints = locs(end);
         peakFFT = pks(end);
+        
+        genFig = 0;
+        if genFig
+            
+            L = size(reflectedSig,1);
+            freq_res = fs/L; %The freqeucny resolution is depentant on the sampling frequency and number of FFT points
+            freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn this into range
+            
+            rangeVec = beat2range(freqGrid,sweepSlope); %Turn beat freqeuncies into range (see documentation for how this works, simple multiply)
+            figure
+            plot(rangeVec,abs(meanfft))
+            title('FFT of Recieved Signal')
+            ylabel('Magnitude')
+            xlabel('Range (m)')
+            xlim([0,40])
+        end
+        
+        
     end
     
     if m>100

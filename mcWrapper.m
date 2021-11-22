@@ -131,16 +131,16 @@ sendElmnt = phased.ShortDipoleAntennaElement('AxisDirection','Y');
 
 %% Target Def
 numTgt = 1;
-tgtStruct.numTgt = numTgt;
 
-tgtStruct.human = [1];
-tgtStruct.offset = [10];
-tgtStruct.yoffset= [0,];
-tgtStruct.zoffset = [0]
+
+tgtStruct.human = [1,1,1];
+tgtStruct.offset = [7,10,14];
+tgtStruct.yoffset= [0,0,0];
+tgtStruct.zoffset = [0,0,0]
 tgtStruct.fhActual=zeros(numSamps,numTgt);
 tgtStruct.frActual=zeros(1,numTgt);
 
-
+tgtStruct.numTgt = length(tgtStruct.human);
 meanHumanRCS = 0.1992;
 tgtStruct.scatterMatt = [2*meanHumanRCS meanHumanRCS;meanHumanRCS 2*meanHumanRCS];
 % tgtStruct.scatterMatt = cat(3,tgtStruct.scatterMatt,tgtStruct.scatterMatt)
@@ -183,7 +183,7 @@ for k = 1:numVar
         
         inputStruct.bistatic = 0;
         
-        tgtStruct.offset =offSetVec(k);
+%         tgtStruct.offset =offSetVec(k);
 %         tgtStruct.offset = [20];
 %         inputStruct.miliPow = powerVec(trialNum);
          inputStruct.miliPow = 20

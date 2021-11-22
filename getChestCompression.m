@@ -45,7 +45,7 @@
 % Written 4/24/2021 Joe Coffin
 
 
-function [t,ct,vt,fr,fh] = getChestCompression(fs,T,N,sigN2,snrFlag,ctOffset,respHeight,heartRatio)
+function [t,ct,vt,fr,fh] = getChestCompression(fs,T,N,sigN2,snrFlag,ctOffset,respHeight,heartRatio,t)
 
 
 
@@ -58,6 +58,7 @@ arguments
     ctOffset(1,:) {mustBeNumeric,mustBeReal} = 0
     respHeight (1,:) {mustBeNumeric,mustBeReal} = 1
     heartRatio (1,:) {mustBeNumeric,mustBeReal} = .3
+    t (1,:) {mustBeNumeric,mustBeReal} = []
 end
 
 a = 15/60;
@@ -79,7 +80,7 @@ fh = a + (b-a).*rand;
 
 
 ar = respHeight;
-ah = respHeight*heartRatio;
+% ah = respHeight*heartRatio;
 ah = heartRatio;
 %ar is the amplitude of the respitory siganl
 %ah is the ampllitude of the heart beat signal.
@@ -89,11 +90,12 @@ ah = heartRatio;
 a=0; %Phase min
 b=2*pi;%phase max
 respPhase = a + (b-a).*rand; %Random Phase for respitory signal
-
-if N == -1
-    t = 0:1/fs:T;
-else
-    t = 0:1/fs:(N-1)/fs;
+if isempty(t)
+    if N == -1
+        t = 0:1/fs:T;
+    else
+        t = 0:1/fs:(N-1)/fs;
+    end
 end
 %Set up the sampling rate and the time vector. I choose fs as 100 since we
 %are sampling a heart beat which is much less than 100Hz (ideally). Fs
@@ -111,7 +113,7 @@ end
 nt = sqrt(sigN2)*randn(size(t));
 
 ct = ar*sin(2*pi*fr*t+respPhase) + ah*sin(2*pi*fh*t) + nt + ctOffset;
-% ct = ar*exp(j*2*pi*fr*t) + .1*ah*exp(j*2*pi*fh*t) + nt;
+
 %For some simulations we need the velocity of the compression signal.
 % Simple dearitive will work here
 vt = 2*pi*fr*ar*cos(2*pi*fr*t) + ah*2*pi*fh*cos(2*pi*fh*t)+ nt;

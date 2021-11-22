@@ -1,35 +1,115 @@
-function [frError,fhError,rangeRes,chestSig,fftAtTarget,muFFT,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inStruct,tgtStruct)
-%% Constants
-fc = inStruct.fc;
-bw = inStruct.bw;
-recvArray = inStruct.recvArray;
-usingArray = inStruct.usingArray;
-sendElmnt = inStruct.sendElmnt;
-respHeight = inStruct.respHeight;
-heartHeight = inStruct.heartHeight;
-beatError = inStruct.beatError;
-clutterRCS = inStruct.clutterRCS;
-bistatic = inStruct.bistatic;
-stv = inStruct.stv;
-% targetOffset = inStruct.targetOffset;
-addNoise = inStruct.addNoise;
-numRecv = inStruct.numRecv;
-calcRangePlot = inStruct.enablePic;
-miliPow = inStruct.miliPow;
-rxRad = inStruct.rxRad;
-numTgt = tgtStruct.numTgt;
+
+%% 
+c = 3e8;
+
 feet2meter  = 0.3048;% 1 foot is this many meters.
+%% Radar Params
+fc = 5e9; %Carrier Freqeuncy
+
+lambda = c/fc; %Wave Length
+bw = .5e9; %BandWidth
+miliPow = 10; %Tx Power
+
+rxRad = .5*feet2meter; %How far apart Tx and Rx are
+
+
+%Respitory Height is about 4 - 12 mm
+% Heart heightis about .2-.5mm
+heartHeight = .5*10^-3; %Heart rate is 30 percent of the respitory rate.
+respHeight = 10 * 10^-3;
+
+clutterRCS = .5; % Mean RCS of each background target
+bistatic = 0
+
+% NumeleMents = 2;
+%
+%
+%
+
+directionalInPut = 10;
+antElmnt = phased.CosineAntennaElement('CosinePower',[1,directionalInPut]);
+
+recvArray = antElmnt;
+% recvArray = phased.ULA('Element',antElmnt,'NumElements',NumeleMents,...
+%     'ElementSpacing',rxRad);
+
+% recvArray = phased.ShortDipoleAntennaElement('AxisDirection','Y');
+% recvArray=phased.CrossedDipoleAntennaElement;
+usingArray = 0; %Set to 0 because array is element not actual array
+%
+
+
+
+
+% 
+% [pat,az,elv] = pattern(recvArray,fc,-180:.1:180,0);
+% % figure
+% plot(az,pat)
+% hold on
+% % resp = antElmnt(fc,[0;0]);
+% antpat=pattern(sendElmnt,fc,-180:.1:180,0);
+% plot(az,antpat)
+% title(['Beam pattern 20 Elements, Element spacing = ',num2str(rxRad),' meters'])
+% legend('Beamformed Response','Single antenna Response')
+% xlabel('Degrees')
+% ylabel('Response Magnitude (dB)')
+
+
+%%
+
+numRecv = 1 %Number of rxs
+directionalInPut = 10
+sendElmnt = phased.CosineAntennaElement('CosinePower',[1,directionalInPut]);
+% sendElmnt = phased.ShortDipoleAntennaElement('AxisDirection','Y');
+
+%% Target Def
+numTgt = 1;
+
+
+numSamps = 10000;
+tgtStruct.numTgt = numTgt;
+
+tgtStruct.human = [1];
+tgtStruct.offset = [10];
+tgtStruct.yoffset= [0];
+tgtStruct.zoffset= [1];
+tgtStruct.fhActual=zeros(numSamps,numTgt);
+tgtStruct.frActual=zeros(1,numTgt);
+
+
+meanHumanRCS = 0.1992;
+
+
+%% Constants
+% fc = inStruct.fc;
+% bw = inStruct.bw;
+% recvArray = inStruct.recvArray;
+% usingArray = inStruct.usingArray;
+% sendElmnt = inStruct.sendElmnt;
+% respHeight = inStruct.respHeight;
+% heartHeight = inStruct.heartHeight;
+% beatError = inStruct.beatError;
+% clutterRCS = inStruct.clutterRCS;
+% bistatic = inStruct.bistatic;
+% stv = inStruct.stv;
+% % targetOffset = inStruct.targetOffset;
+% addNoise = inStruct.addNoise;
+% numRecv = inStruct.numRecv;
+% calcRangePlot = inStruct.enablePic;
+% miliPow = inStruct.miliPow;
+% rxRad = inStruct.rxRad;
+% numTgt = tgtStruct.numTgt;
+
 
 %% Setting up parameters
 % rng(2017);
 % fc = 5e9; %% 2 Ghz
-c = 3e8;
-lambda = c/fc;
+
+
+
+
 range_max = 50;
 tm = 5.5*range2time(range_max);
-% rangeRes  = .3;
-% bw = range2bw(rangeRes,c); %0.5 Ghz
-% bw = .18*10^9
 sweepSlope = bw/tm;
 fr_max = range2beat(range_max,sweepSlope,c);
 v_max = 10*1000/3600;
@@ -67,14 +147,15 @@ rangeVec = beat2range(freqGrid,sweepSlope);
 
 %% Radar Setup
 antAperture =6.06e-4;                        % Antenna aperture (m^2)
-
-frq = 77e9
-lambda = c/frq
-antGain = aperture2gain(antAperture,lambda);  % Antenna gain (dB)
+% 
+% frq = 77e9
+% lambda = c/frq
+% antGain = aperture2gain(antAperture,lambda);  % Antenna gain (dB)
 
 antGain = 3.2538;
 
 txPkPower = db2pow(5)*1e-3;                   % Tx peak power (W)
+
 txPkPower = miliPow*1e-3;
 txGain = antGain;                             % Tx antenna gain (dB)
 
@@ -120,8 +201,8 @@ rxchannel = phased.FreeSpace('SampleRate',fs,...
 
 %% AntennaPlatform
 
-rxPlatform = phased.Platform('InitialPosition',[0;-rxRad;0],'Velocity',[0;0;0],'OrientationAxesOutputPort',true);
-txPlatform = phased.Platform('InitialPosition',[0;rxRad;0],'Velocity',[0;0;0],'OrientationAxesOutputPort',true);
+rxPlatform = phased.Platform('InitialPosition',[0;-rxRad;0],'Velocity',[0;0;.1],'OrientationAxesOutputPort',true);
+txPlatform = phased.Platform('InitialPosition',[0;rxRad;0],'Velocity',[0;0;.1],'OrientationAxesOutputPort',true);
 
 
 %% Target movement setup
@@ -132,7 +213,7 @@ txPlatform = phased.Platform('InitialPosition',[0;rxRad;0],'Velocity',[0;0;0],'O
 fsChest = 500;    
 dt = 1/fsChest;  
 % seconds per sample
-StopTime = 8;
+StopTime = 20;
 t = (0:dt:StopTime-dt)';
 
 [targets,targetplatform,tgtStruct] = TargetTool(tgtStruct,respHeight,heartHeight,fc,dt,t,fsChest,bistatic);
@@ -164,6 +245,8 @@ reflectedPhase = zeros(numTgt,Nsweep);
 
 recvPow = zeros(1,Nsweep);
 
+
+
 reflectedSig = zeros(length(sig),numRecv);
 
 for m = 1:Nsweep
@@ -175,15 +258,6 @@ for m = 1:Nsweep
     end
 %     targetplatform(dt);
     recvPow(m) = (norm(rxSig)^2) / length(rxSig);
-    if addNoise
-        tpResponse = fft(rxSig);
-        
-        maxtp = max(abs(tpResponse));
-        noiseMult = db2pow(-stv)*maxtp;
-        
-        rxSig =  rxSig + noiseMult*randn(size(rxSig));
-    end
-    
     
     reflectedSig(:,m) = rxSig; %Beam form the response
     
@@ -284,7 +358,7 @@ else
 end
 
 %% Calculate Range Estimate plot (Only works with High Band width (.5 GHz)
-% calcRangePlot = 0; %Only cacluate range Plot if needed. Do not need to for MC trials. It is only a diagonstic.
+calcRangePlot = 0; %Only cacluate range Plot if needed. Do not need to for MC trials. It is only a diagonstic.
 if calcRangePlot
     L = size(reflectedSig,1);
     freq_res = fs/L; %The freqeucny resolution is depentant on the sampling frequency and number of FFT points
@@ -308,7 +382,7 @@ if calcRangePlot
     % xlabel('Angle to Second Target')
     ylabel('Range Estimate')
     ylim([0,range_max + 10])
-     ylim([0,10])
+
 %     jct.util.SavetoPng(['.\temp\Range vs time ',titleStr,'.png'])
 
     %% Build Doppler Info
@@ -342,5 +416,27 @@ if calcRangePlot
     end
 end
 
+%%
+
+pltYes = 0;
+if pltYes
+    to = txPlatform.InitialPosition;
+    ro = rxPlatform.InitialPosition;
+    
+    posmat = targetplatform.CustomTrajectory';
+    originPos = targetplatform.CustomTrajectory(1,2:end)
+    figure(1)
+    plot3(posmat(2,:),posmat(3,:),posmat(4,:),'b.')
+    hold on
+    plot3(ro(1),ro(2),ro(3),'rx')
+    
+    plot3(to(1),to(2),to(3),'rx')
+    
+    plot3(originPos(1),originPos(2),originPos(3),'ro')
+    xlabel('X (m)')
+    ylabel('Y (m)')
+    zlabel('Z (m)')
+    grid
+    hold off
 end
 

@@ -1,6 +1,4 @@
-
-singleMCTrial.m
-singleMCTrial.asv
-Pics/rangevsTime.png
-Pics/PhaseCompression.png
+*.csv
+*.mat
+*.asv
 *.png

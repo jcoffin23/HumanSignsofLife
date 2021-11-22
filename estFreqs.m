@@ -37,7 +37,44 @@ function [fr,fh] = estFreqs(ct,fs)
         %Take the FFT of the resp rate filtered signals
         [fftResp,f] =easyFFT(ctResp,fs,Npt);
         [fftHeart,~] = easyFFT(ctHeart,fs,Npt);
-%         [fftTotal,f] = easyFFT(ct,fs,Npt);
+        
+        [fftTotal,f] = easyFFT(ct,fs,Npt);
+       
+        
+        %{
+         [fftTotal,f] = easyFFT(ct,fs,Npt);
+        figure
+        fftTotal=abs(fftTotal);
+        fftTotal=normalize(fftTotal,'range')
+        plot(f,abs(fftTotal))
+        title('Total Chest Signal FFT')
+        xlabel('Freq (Hz)')
+        ylabel('Mag')
+        xlim([-5,5])
+        
+        
+        figure
+        fftHeart1=abs(fftHeart);
+        fftHeart1=normalize(fftHeart1,'range')
+        plot(f,abs(fftHeart1))
+        title('Chest Signal FFT (Post Heart Filter) ')
+        xlabel('Freq (Hz)')
+        ylabel('Mag')
+        xlim([-5,5]) 
+        
+        
+        dy = diff(fftTotal);
+        dx=diff(f);
+        der = abs(dy./dx);
+        figure;plot(f(1:end-1),der)
+        
+        title('Derivative of FFT')
+        xlabel('Freq (Hz)')
+        ylabel('Mag')
+        xlim([-5,5])
+        
+        %}
+        
         
         
         %Find the index of the highest power part of the FFT
@@ -47,13 +84,25 @@ function [fr,fh] = estFreqs(ct,fs)
         % This will get done for the raw reflected signal and the LMS
         % filtered signal
       
-
+%         dy = diff(fftTotal); 
+%         dx=diff(f);
+%         der = abs(dy./dx); %Find the Deritive of the FFT
+%         
+%         [pks,locs,w,p] = findpeaks(abs(fftTotal)); %Find all the peaks
+%         
+%         [p,pSortIdx]=sort(p,'descend'); %sort the prominate peaks 
+%         pks = pks(pSortIdx); %Sort the pks by how prominate they are
+%         locs = locs(pSortIdx);%Sort the locs indexs to match
+%         
+        
+%         fr = abs(f(locs(1))); %Take the most prominate peak as the respiration rate
         [~,maxIdx] = max(abs(fftResp));
         fr = abs(f(maxIdx));
         
         [~,maxIdx] = max(abs(fftHeart));
         fh = abs(f(maxIdx));
-        t=1
+
+%         fh = abs(f(locs(4))); %Take the second most prominate peak as the Heart rate
 end
 
 

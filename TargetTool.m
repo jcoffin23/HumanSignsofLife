@@ -33,7 +33,7 @@ wpts = [];
 for k = 1:numTgt
     
     
-    if tgtStruct.human(k)
+    if tgtStruct.human(k) ==1
         z = tgtStruct.zoffset(k)*ones(size(t'));
         
         %Get the chest compression signal. We The frequencies are random each time
@@ -44,9 +44,13 @@ for k = 1:numTgt
        [~,ct,~,tgtStruct.frActual(k),tgtStruct.fhActual(:,k)] = hrvChestComp(fsChest,[],length(t),0,0,tgtStruct.offset(k),respHeight,heartHeight,1);
         wpts = cat(3,wpts,[t';ct; tgtStruct.yoffset(k)*ones(size(t')); z]');%appeend this targets path to all targets paths
         
-      
+    elseif tgtStruct.human(k) == 2 %Target will move linearly away from reciever
+        
+        wpts = cat(3,wpts,[t';tgtStruct.offset(k)  + t'; tgtStruct.yoffset(k)*ones(size(t')); z]');
+        tgtStruct.frActual(k) = 0;
+        tgtStruct.fhActual(k) = 0;   
     else
-        wpts = cat(3,wpts,[t';tgtStruct.offset(k)*ones(size(t')); tgtStruct.yoffset(k)*ones(size(t')); z']'); %append the stationary target to the wpts to make the platform
+        wpts = cat(3,wpts,[t';tgtStruct.offset(k)*ones(size(t')); tgtStruct.yoffset(k)*ones(size(t')); z]'); %append the stationary target to the wpts to make the platform
         tgtStruct.frActual(k) = 0;
         tgtStruct.fhActual(k) = 0;
     end

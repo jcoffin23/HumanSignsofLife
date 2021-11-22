@@ -20,6 +20,8 @@ rxRad = inStruct.rxRad;
 numTgt = tgtStruct.numTgt;
 feet2meter  = 0.3048;% 1 foot is this many meters.
 
+
+numHuTgt = sum( tgtStruct.human ==1);%Find out how many targets are human (how many phase points to extract)
 %% Setting up parameters
 % rng(2017);
 % fc = 5e9; %% 2 Ghz
@@ -160,7 +162,7 @@ pedest = backscatterPedestrian( 'Height',1.8, ...
 
 %% Simulation Loop
 Nsweep = length(t);
-reflectedPhase = zeros(numTgt,Nsweep);
+reflectedPhase = zeros(numHuTgt,Nsweep);
 
 recvPow = zeros(1,Nsweep);
 
@@ -195,21 +197,29 @@ for m = 1:Nsweep
     end
 
     
-    if m==100
+    if m==100 %Run the first 100 rx signals before finding where to extract phase
+        % this is done because it is very important to extract phase in the
+        % right FFT range bins. There can be some movement of the peak FFT
+        % magnitude but averaging this helps. 
         idRunAvg =  mean(idmaxSave(1:m-1));
         idMax = round(idRunAvg);
         
-        meanfft = fft(mean(reflectedSig(:,1:m),2));
-        fftAtTarget = abs(meanfft(targetIndex));
-        muFFT = mean(abs(meanfft));
+        meanfft = fft(mean(reflectedSig(:,1:m),2)); %Take the mean of the FFT
+        fftAtTarget = abs(meanfft(targetIndex)); %The targetIndex is the
+%          actual range bin of the target. if TargetIndex ==
+%          phaseExtractPoints, then this will be the same as peakFFT.
+        muFFT = mean(abs(meanfft)); %The average FFT 
         [pks,locs] = findpeaks(abs(meanfft));
-        [pks,sortIdx]=sort(pks);
-        locs=locs(sortIdx);
+        [pks,sortIdx]=sort(pks); %Find and sort the peaks of the fft
+        locs=locs(sortIdx); %apply the sorting to the range bins 
         
-        pks = pks(end-2:end);
-%         phaseExtractPoints = locs(end-1:end);
-        phaseExtractPoints = locs(end);
-        peakFFT = pks(end);
+        pks = flip(pks);
+        locs = flip(locs); %Flip the sorting to be from greatest to least
+        
+
+        phaseExtractPoints = locs(1:numHuTgt); %Set the phase extract points to be the largest fft peaks
+        peakFFT =pks(1:numHuTgt); %value of largest FFT peak, used for debugging
+        
         
         genFig = 0;
         if genFig
@@ -261,8 +271,7 @@ if PlotChest
     cnt=1;
     str = {};
     figure
-    plot(t(101:end),chestSig(101:end))
-    for plotIdx = numTgt:-1:1
+    for plotIdx = numHuTgt:-1:1
         plot(t,chestSig(plotIdx,:))
         hold on
         str{cnt}=['Target ',num2str(cnt)]

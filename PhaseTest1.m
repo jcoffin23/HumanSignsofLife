@@ -30,6 +30,7 @@ numSamps = 4000
 
 
 
+
 %% Set up Defaults
 fc = 5e9;
 
@@ -65,13 +66,13 @@ usingArray = 0; %Set to 0 because array is element not actual array
 sendElmnt = phased.ShortDipoleAntennaElement('AxisDirection','Y');
 
 %% Target Def
-numTgt = 1;
+numTgt =5;
 
 
-tgtStruct.human = [1,1,1];
-tgtStruct.offset = [7,10,14];
-tgtStruct.yoffset= [0,0,0];
-tgtStruct.zoffset = [0,0,0];
+tgtStruct.human = [1,1,1,1,1];
+tgtStruct.offset = [10,15,20,25,50];
+tgtStruct.yoffset= zeros(1,5);
+tgtStruct.zoffset = zeros(1,5);
 tgtStruct.fhActual=zeros(numSamps,numTgt);
 tgtStruct.frActual=zeros(1,numTgt);
 
@@ -100,15 +101,14 @@ inputStruct.addNoise = addNoise;
 inputStruct.numRecv = (NumeleMents * usingArray) + (1*(1-usingArray)); % If using array, then numelements will be equal to number of elemnnts, otherwise it will be 1
 inputStruct.enablePic = 0;
 inputStruct.rxRad=rxRad;
-
 inputStruct.bistatic = 0;
-
 inputStruct.miliPow = 20;
-
-
-
 inputStruct.bw = bw;
-[respErr,heartErr,~,chestSig,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
+
+
+
+
+[frError,fhError,rangeRes,chestSig,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
 
 
 

@@ -1,4 +1,4 @@
-function [frError,fhError,rangeRes,chestSig,fftAtTarget,muFFT,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inStruct,tgtStruct)
+function [frError,fhError,rangeRes,chestSig,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inStruct,tgtStruct)
 %% Constants
 fc = inStruct.fc;
 bw = inStruct.bw;
@@ -63,9 +63,9 @@ freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn 
 
 rangeVec = beat2range(freqGrid,sweepSlope);
 
- [theta,range]=cart2pol(tgtStruct.offset,tgtStruct.yoffset); %Calculate range for targetIndex calcualtion
+[theta,range]=cart2pol(tgtStruct.offset,tgtStruct.yoffset); %Calculate range for targetIndex calcualtion
 [~,targetIndex] = min(abs(rangeVec - range));
-targetIndex = [1:numHuTgt;targetIndex]
+targetIndex = [1:numHuTgt;targetIndex(tgtStruct.human ==1)]
 
 %% Radar Setup
 antAperture =6.06e-4;                        % Antenna aperture (m^2)
@@ -165,8 +165,12 @@ Nsweep = length(t);
 reflectedPhase = zeros(numHuTgt,Nsweep);
 
 recvPow = zeros(1,Nsweep);
-
-reflectedSig = zeros(length(sig),numTgt,numRecv);
+if numRecv ==1
+    reflectedSig = zeros(length(sig),Nsweep);
+    
+else
+    reflectedSig = zeros(length(sig),numTgt,numRecv);
+end
 phaseExtractPoints = zeros(numHuTgt,1);
 peakFFT= zeros(numHuTgt,1);
 for m = 1:Nsweep
@@ -188,8 +192,13 @@ for m = 1:Nsweep
     end
     
     
-    reflectedSig(:,:,m) = rxSig; %Beam form the response
-    
+     %Beam form the response
+    if numRecv ==1
+        reflectedSig(:,m) = rxSig;
+        
+    else
+       reflectedSig(:,:,m) = rxSig;
+    end
     reflectedFFT = fft(rxSig);
     
 %     if m<100
@@ -198,64 +207,35 @@ for m = 1:Nsweep
 
     
     if m==100 %Run the first 100 rx signals before finding where to extract phase
-        % this is done because it is very important to extract phase in the
-        % right FFT range bins. There can be some movement of the peak FFT
-        % magnitude but averaging this helps.  
-        meanfft = fft(mean(reflectedSig(:,:,1:m),3)); %Take the mean of the FFT over 100 time samples
-        
-        
-        targetIndex = sub2ind(size(meanfft),targetIndex(2,:),targetIndex(1,:)); %Convert target index to indcies instead of row,col
-        fftAtTarget = abs(meanfft(targetIndex)); %The targetIndex is the
-%          actual range bin of the target. if TargetIndex ==
-%          phaseExtractPoints, then this will be the same as peakFFT.
-        muFFT = mean(abs(meanfft)); %The average FFT over freq (Not important used for debugging) 
-        
-        for fftcnt = 1:numHuTgt
-            [pks,locs] = findpeaks(abs(meanfft(:,fftcnt)));
-            [pks,sortIdx]=sort(pks); %Find and sort the peaks of the fft
-            locs=locs(sortIdx); %apply the sorting to the range bins
-            
-            pks = flip(pks);
-            locs = flip(locs); %Flip the sorting to be from greatest to least
-            
-            
-            phaseExtractPoints(fftcnt) = locs(1); %Set the phase extract points to be the largest fft peaks
-            peakFFT(fftcnt) =pks(1); %value of largest FFT peak, used for debugging
-            
-            
-            
-        end
-        phaseExtractPoints = sub2ind(size(reflectedFFT),phaseExtractPoints',1:numHuTgt);
-            %Convert target index from row,col to indcies
-            %This is needed because with multiple targets the fft will be
-            %size MxL where M is len of pulse and L is num of targets.
-        
-        genFig = 0;
-        if genFig
-            
-            L = size(reflectedSig,1);
-            freq_res = fs/L; %The freqeucny resolution is depentant on the sampling frequency and number of FFT points
-            freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn this into range
-            
-            rangeVec = beat2range(freqGrid,sweepSlope); %Turn beat freqeuncies into range (see documentation for how this works, simple multiply)
-            figure
-            plot(rangeVec,abs(meanfft))
-            title('FFT of Recieved Signal')
-            ylabel('Magnitude')
-            xlabel('Range (m)')
-            xlim([0,40])
-        end
-        
-        
+        phaseExtractPoints = ExtractPhase(rxSig,m,targetIndex,numHuTgt,numRecv,reflectedSig);
     end
     
     if m>100
-        reflectedPhase(:,m) =  (angle(reflectedFFT(phaseExtractPoints))); %Calculate the phase of the reflected signal AT the beat freqeuncy ONLY!!
+        reflectedPhase(:,m) =  angle(reflectedFFT(phaseExtractPoints)); %Calculate the phase of the reflected signal AT the beat freqeuncy ONLY!!
     end
     
     
     
 end
+
+
+genFig = 0;
+if genFig
+    
+    L = size(reflectedSig,1);
+    freq_res = fs/L; %The freqeucny resolution is depentant on the sampling frequency and number of FFT points
+    freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn this into range
+    
+    rangeVec = beat2range(freqGrid,sweepSlope); %Turn beat freqeuncies into range (see documentation for how this works, simple multiply)
+    figure
+    plot(rangeVec,abs(meanfft))
+    title('FFT of Recieved Signal')
+    ylabel('Magnitude')
+    xlabel('Range (m)')
+    xlim([0,40])
+end
+
+
 
 recvPow = mean(recvPow);
 
@@ -301,6 +281,7 @@ end
 
 whichTarget = 1;
  %Which target to compare the frequencies
+ 
 [fr3,fh3] = estFreqs(chestSig(whichTarget,:)-mean(chestSig(whichTarget,:)),fsChest); %Estimate the freqeuncy of the chest sig (Must be DC so zero frequency does not have as much power
 
 

@@ -27,8 +27,6 @@ feet2meter  = 0.3048;% 1 foot is this many meters.
 
 
 numSamps = 4000
-FHA = zeros(numPow,numVar,numSamps);
-chestSig = zeros(numPow,numVar,numSamps);
 
 
 %% Set up Defaults
@@ -103,14 +101,6 @@ tgtStruct.frActual=zeros(1,numTgt);
 tgtStruct.numTgt = length(tgtStruct.human);
 meanHumanRCS = 0.1992;
 tgtStruct.scatterMatt = [2*meanHumanRCS meanHumanRCS;meanHumanRCS 2*meanHumanRCS];
-%% For Loop
-peakFFTMat = zeros(length(powerVec),length(offSetVec));
-stdMat = zeros(size(peakFFTMat));
-respMat=zeros(size(peakFFTMat));
-heartMat=zeros(size(peakFFTMat));
-targetFFTMat=zeros(size(peakFFTMat));
-heartActualMat=zeros(size(peakFFTMat));
-respActualMat=zeros(size(peakFFTMat));
 
 
 
@@ -140,12 +130,7 @@ inputStruct.miliPow = 20;
 
 
 inputStruct.bw = bw;
-[respErr,heartErr,~,chestSig(trialNum,k,:),fftAtTarget,muFFT,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
-
-FHA(trialNum,k,:) = tgtStructOut.fhActual;
-
-RPMat(trialNum,k) = recvPow; %Average recieve power for the test conditions.
-
+[frError,fhError,rangeRes,chestSig,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
 
 
 

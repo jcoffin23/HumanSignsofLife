@@ -63,9 +63,9 @@ freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn 
 
 rangeVec = beat2range(freqGrid,sweepSlope);
 
-
-[~,targetIndex] = min(abs(rangeVec - tgtStruct.offset));
-
+ [theta,range]=cart2pol(tgtStruct.offset,tgtStruct.yoffset); %Calculate range for targetIndex calcualtion
+[~,targetIndex] = min(abs(rangeVec - range));
+targetIndex = [1:numHuTgt;targetIndex]
 
 %% Radar Setup
 antAperture =6.06e-4;                        % Antenna aperture (m^2)
@@ -166,14 +166,15 @@ reflectedPhase = zeros(numHuTgt,Nsweep);
 
 recvPow = zeros(1,Nsweep);
 
-reflectedSig = zeros(length(sig),numRecv);
-
+reflectedSig = zeros(length(sig),numTgt,numRecv);
+phaseExtractPoints = zeros(numHuTgt,1);
+peakFFT= zeros(numHuTgt,1);
 for m = 1:Nsweep
     
     if bistatic
         [rxSig,~,~,~] = bistaticChirp(targets,transmitter,receiver,txchannel,rxchannel,radiator,collector,beamformer,targetplatform,rxPlatform,txPlatform,dt,waveform,numTgt);
     else
-        [rxSig,~,~,~] = monostaticChirp(targets,transmitter,receiver,txchannel,rxchannel,radiator,collector,beamformer,targetplatform,rxPlatform,txPlatform,dt,waveform,numTgt);
+        [rxSig,~,~,~] = monostaticChirp(targets,transmitter,receiver,txchannel,rxchannel,radiator,collector,beamformer,targetplatform,rxPlatform,txPlatform,dt,waveform,numTgt,tgtStruct);
     end
 %     targetplatform(dt);
     recvPow(m) = (norm(rxSig)^2) / length(rxSig);
@@ -187,39 +188,47 @@ for m = 1:Nsweep
     end
     
     
-    reflectedSig(:,m) = rxSig; %Beam form the response
+    reflectedSig(:,:,m) = rxSig; %Beam form the response
     
     reflectedFFT = fft(rxSig);
     
-    if m<100
-        [maxFFT,idMax] = max(abs(reflectedFFT));
-         idmaxSave(m) = idMax;
-    end
+%     if m<100
+%         [maxFFT,idMax] = max(abs(reflectedFFT));
+%     end
 
     
     if m==100 %Run the first 100 rx signals before finding where to extract phase
         % this is done because it is very important to extract phase in the
         % right FFT range bins. There can be some movement of the peak FFT
-        % magnitude but averaging this helps. 
-        idRunAvg =  mean(idmaxSave(1:m-1));
-        idMax = round(idRunAvg);
+        % magnitude but averaging this helps.  
+        meanfft = fft(mean(reflectedSig(:,:,1:m),3)); %Take the mean of the FFT over 100 time samples
         
-        meanfft = fft(mean(reflectedSig(:,1:m),2)); %Take the mean of the FFT
+        
+        targetIndex = sub2ind(size(meanfft),targetIndex(2,:),targetIndex(1,:)); %Convert target index to indcies instead of row,col
         fftAtTarget = abs(meanfft(targetIndex)); %The targetIndex is the
 %          actual range bin of the target. if TargetIndex ==
 %          phaseExtractPoints, then this will be the same as peakFFT.
-        muFFT = mean(abs(meanfft)); %The average FFT 
-        [pks,locs] = findpeaks(abs(meanfft));
-        [pks,sortIdx]=sort(pks); %Find and sort the peaks of the fft
-        locs=locs(sortIdx); %apply the sorting to the range bins 
+        muFFT = mean(abs(meanfft)); %The average FFT over freq (Not important used for debugging) 
         
-        pks = flip(pks);
-        locs = flip(locs); %Flip the sorting to be from greatest to least
-        
-
-        phaseExtractPoints = locs(1:numHuTgt); %Set the phase extract points to be the largest fft peaks
-        peakFFT =pks(1:numHuTgt); %value of largest FFT peak, used for debugging
-        
+        for fftcnt = 1:numHuTgt
+            [pks,locs] = findpeaks(abs(meanfft(:,fftcnt)));
+            [pks,sortIdx]=sort(pks); %Find and sort the peaks of the fft
+            locs=locs(sortIdx); %apply the sorting to the range bins
+            
+            pks = flip(pks);
+            locs = flip(locs); %Flip the sorting to be from greatest to least
+            
+            
+            phaseExtractPoints(fftcnt) = locs(1); %Set the phase extract points to be the largest fft peaks
+            peakFFT(fftcnt) =pks(1); %value of largest FFT peak, used for debugging
+            
+            
+            
+        end
+        phaseExtractPoints = sub2ind(size(reflectedFFT),phaseExtractPoints',1:numHuTgt);
+            %Convert target index from row,col to indcies
+            %This is needed because with multiple targets the fft will be
+            %size MxL where M is len of pulse and L is num of targets.
         
         genFig = 0;
         if genFig
@@ -334,8 +343,8 @@ if calcRangePlot
     xlabel('Time (s)')
     % xlabel('Angle to Second Target')
     ylabel('Range Estimate')
-    ylim([0,range_max + 10])
-     ylim([0,10])
+    ylim([0,range_max/2])
+%      ylim([0,10])
 %     jct.util.SavetoPng(['.\temp\Range vs time ',titleStr,'.png'])
 
     %% Build Doppler Info

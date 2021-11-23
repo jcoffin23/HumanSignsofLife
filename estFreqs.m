@@ -41,11 +41,11 @@ function [fr,fh] = estFreqs(ct,fs)
         [fftTotal,f] = easyFFT(ct,fs,Npt);
        
         
-        %{
+
          [fftTotal,f] = easyFFT(ct,fs,Npt);
         figure
         fftTotal=abs(fftTotal);
-        fftTotal=normalize(fftTotal,'range')
+        fftTotal=normalize(fftTotal,'range');
         plot(f,abs(fftTotal))
         title('Total Chest Signal FFT')
         xlabel('Freq (Hz)')
@@ -55,25 +55,14 @@ function [fr,fh] = estFreqs(ct,fs)
         
         figure
         fftHeart1=abs(fftHeart);
-        fftHeart1=normalize(fftHeart1,'range')
+        fftHeart1=normalize(fftHeart1,'range');
         plot(f,abs(fftHeart1))
         title('Chest Signal FFT (Post Heart Filter) ')
         xlabel('Freq (Hz)')
         ylabel('Mag')
         xlim([-5,5]) 
         
-        
-        dy = diff(fftTotal);
-        dx=diff(f);
-        der = abs(dy./dx);
-        figure;plot(f(1:end-1),der)
-        
-        title('Derivative of FFT')
-        xlabel('Freq (Hz)')
-        ylabel('Mag')
-        xlim([-5,5])
-        
-        %}
+     
         
         
         

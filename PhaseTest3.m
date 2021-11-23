@@ -110,15 +110,16 @@ inputStruct.miliPow = 20;
 inputStruct.bw = bw;
 
 
-clutterOffsetVec = [15:5:30];
-huPhase = zeros(numSamps,4);
+clutterOffsetVec = [30:-5:5];
+lenClut = length(clutterOffsetVec);
+huPhase = zeros(numSamps,lenClut);
 
-clutPhase = zeros(numSamps,4);
-for k = 1:4
+clutPhase = zeros(numSamps,lenClut);
+for k = 1:lenClut
    
     %Paramters that are different for this test are below
 tgtStruct.human = [1,0];
-tgtStruct.offset = [15,clutterOffsetVec(k)];
+tgtStruct.offset = [30,clutterOffsetVec(k)];
 inputStruct.collectAllTargetPhase = 1;
 
 [frError,fhError,rangeRes,chestSig,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);

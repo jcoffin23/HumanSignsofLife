@@ -81,7 +81,12 @@ tgtStruct.fhActual=zeros(numSamps,numTgt);
 tgtStruct.frActual=zeros(1,numTgt);
 
 tgtStruct.numTgt = numTgt;
-meanHumanRCS = 0.1992;
+boost=0;
+if boost == 1
+    meanHumanRCS = 10 * 0.1992;
+else
+    meanHumanRCS = 0.1992;
+end
 tgtStruct.scatterMatt = [2*meanHumanRCS meanHumanRCS;meanHumanRCS 2*meanHumanRCS];
 %% For Loop
 
@@ -110,7 +115,7 @@ inputStruct.miliPow = 20;
 inputStruct.bw = bw;
 
 
-clutterOffsetVec = [30:-5:5];
+clutterOffsetVec = [5:5:30];
 lenClut = length(clutterOffsetVec);
 huPhase = zeros(numSamps,lenClut);
 
@@ -138,12 +143,11 @@ plot(tgtStructOut.t,huPhase)
 xlabel('Time(s)')
 ylabel('c(t)')
 title('Chest Compression vs time')
-legend('Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
+legend('Clutter: 5m','Clutter: 10m','Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
 
 plot(tgtStructOut.t,clutPhase)
 xlabel('Time(s)')
 ylabel('Clutter Phase')
 title('Clutter Phase vs time')
-legend('Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
-
+legend('Clutter: 5m','Clutter: 10m','Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
 

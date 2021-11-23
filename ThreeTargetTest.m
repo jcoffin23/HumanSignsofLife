@@ -102,7 +102,7 @@ inputStruct.enablePic = 0;
 inputStruct.rxRad=rxRad;
 
 inputStruct.bistatic = 0;
-
+inputStruct.collectAllTargetPhase = 0;
 inputStruct.miliPow = 20;
 
 

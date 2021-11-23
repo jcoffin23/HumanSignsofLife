@@ -126,7 +126,7 @@ inputStruct.addNoise = 0;
 inputStruct.numRecv = (NumeleMents * usingArray) + (1*(1-usingArray)); % If using array, then numelements will be equal to number of elemnnts, otherwise it will be 1
 inputStruct.enablePic = 0;
 inputStruct.rxRad=rxRad;
-
+inputStruct.collectAllTargetPhase = 0
 inputStruct.bistatic = 0;
 
 inputStruct.miliPow = 20;

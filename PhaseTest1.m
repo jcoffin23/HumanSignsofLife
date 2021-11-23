@@ -104,7 +104,7 @@ inputStruct.rxRad=rxRad;
 inputStruct.bistatic = 0;
 inputStruct.miliPow = 20;
 inputStruct.bw = bw;
-
+inputStruct.collectAllTargetPhase = 0;
 
 
 

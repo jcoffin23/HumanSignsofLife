@@ -26,7 +26,9 @@ feet2meter  = 0.3048;% 1 foot is this many meters.
 % Preallocate the arrays for results
 
 
-numSamps = 4000
+numSamps = 4000; %this is known because of internal decisions. bad code?
+
+
 
 
 %% Set up Defaults
@@ -42,7 +44,7 @@ beatError = 0;
 heartHeight = .5*10^-3; %Heart rate is 30 percent of the respitory rate.
 respHeight = 10 * 10^-3;
 clutterRCS = .5; % Mean RCS of each background target
-stv = 20; %Signal SNR
+stv = 20;
 addNoise = 0; % Should noise be added
 
 
@@ -50,57 +52,38 @@ addNoise = 0; % Should noise be added
 
 %% Recieve array setup
 
+rxRad = .5*feet2meter;
 
-rxRad = lambda/2; %Element spacing Using lambda/2 is optimal
+NumeleMents = 1;
 
-NumeleMents = 20;
-
-
-
-
-directionalInPut = 10; %This is the single antenna beampattern parameter. Can be optimized (not done so here)
-antElmnt = phased.CosineAntennaElement('CosinePower',[1,directionalInPut]);
+recvArray=phased.CrossedDipoleAntennaElement;
+usingArray = 0; %Set to 0 because array is element not actual array
 
 
-recvArray = phased.ULA('Element',antElmnt,'NumElements',NumeleMents,...
-    'ElementSpacing',rxRad);
 
-
-usingArray = 1; %Set to 0 because array is element not actual array
-genFig = 0;
-if genFig
-    [pat,az,elv] = pattern(recvArray,fc,-90:.1:90,0);
-    % figure
-    plot(az,pat)
-    hold on
-    % resp = antElmnt(fc,[0;0]);
-    antpat=pattern(sendElmnt,fc,-90:.1:90,0);
-    plot(az,antpat)
-    title(['Beam pattern Twenty Elements, Element spacing = ',num2str(rxRad),' meters'])
-    legend('Beamformed Response','Single antenna Response')
-    xlabel('Degrees')
-    ylabel('Response Magnitude (dB)')
-    
-end
 %% Send Array Setup
 
 sendElmnt = phased.ShortDipoleAntennaElement('AxisDirection','Y');
 
 %% Target Def
-numTgt = 3;
 
-[x,y] = pol2cart(deg2rad([-20,0,20]),[10,10,10])
 
-tgtStruct.human = [1,1,1];
-tgtStruct.offset =x;
-tgtStruct.yoffset= y;
-tgtStruct.zoffset = [0,0,0];
+tgtStruct.human = [1,0];
+tgtStruct.offset = [15,5];
+
+
+numTgt = length(tgtStruct.human);
+
+
+tgtStruct.yoffset= zeros(1,numTgt);
+tgtStruct.zoffset = zeros(1,numTgt);
 tgtStruct.fhActual=zeros(numSamps,numTgt);
 tgtStruct.frActual=zeros(1,numTgt);
 
-tgtStruct.numTgt = length(tgtStruct.human);
+tgtStruct.numTgt = numTgt;
 meanHumanRCS = 0.1992;
 tgtStruct.scatterMatt = [2*meanHumanRCS meanHumanRCS;meanHumanRCS 2*meanHumanRCS];
+%% For Loop
 
 
 
@@ -118,22 +101,48 @@ inputStruct.heartHeight = heartHeight;
 inputStruct.beatError = beatError;
 inputStruct.clutterRCS = clutterRCS;
 inputStruct.stv = stv;
-inputStruct.addNoise =0;
+inputStruct.addNoise = addNoise;
 inputStruct.numRecv = (NumeleMents * usingArray) + (1*(1-usingArray)); % If using array, then numelements will be equal to number of elemnnts, otherwise it will be 1
 inputStruct.enablePic = 0;
 inputStruct.rxRad=rxRad;
-inputStruct.collectAllTargetPhase = 0
 inputStruct.bistatic = 0;
-
 inputStruct.miliPow = 20;
-
-
-
 inputStruct.bw = bw;
+
+
+clutterOffsetVec = [15:5:30];
+huPhase = zeros(numSamps,4);
+
+clutPhase = zeros(numSamps,4);
+for k = 1:4
+   
+    %Paramters that are different for this test are below
+tgtStruct.human = [1,0];
+tgtStruct.offset = [15,clutterOffsetVec(k)];
+inputStruct.collectAllTargetPhase = 1;
+
 [frError,fhError,rangeRes,chestSig,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
 
 
+huPhase(:,k) = chestSig(1,:);
+
+clutPhase(:,k) = chestSig(2,:);
+t=1
+
+    
+end
 
 
+plot(tgtStructOut.t,huPhase)
+xlabel('Time(s)')
+ylabel('c(t)')
+title('Chest Compression vs time')
+legend('Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
+
+plot(tgtStructOut.t,clutPhase)
+xlabel('Time(s)')
+ylabel('Clutter Phase')
+title('Clutter Phase vs time')
+legend('Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
 
 

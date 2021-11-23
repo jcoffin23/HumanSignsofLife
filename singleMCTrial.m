@@ -142,7 +142,7 @@ frActual = tgtStruct.frActual;
 fhActual = tgtStruct.fhActual;
 
 
-
+tgtStruct.t = t;
 %% BeamFormer
 
 if usingArray
@@ -162,7 +162,15 @@ pedest = backscatterPedestrian( 'Height',1.8, ...
 
 %% Simulation Loop
 Nsweep = length(t);
-reflectedPhase = zeros(numHuTgt,Nsweep);
+
+if inStruct.collectAllTargetPhase ==1 %This may be missing in some test files, just add the field at set to 0
+    %             if only phase from humans is wanted. Otherwise set to 1.
+    numPhaseExtractPoints = tgtStruct.numTgt;
+else
+    numPhaseExtractPoints = numHuTgt;
+end
+
+reflectedPhase = zeros(numPhaseExtractPoints,Nsweep);
 
 recvPow = zeros(1,Nsweep);
 if numRecv ==1
@@ -207,7 +215,8 @@ for m = 1:Nsweep
 
     
     if m==100 %Run the first 100 rx signals before finding where to extract phase
-        phaseExtractPoints = ExtractPhase(rxSig,m,targetIndex,numHuTgt,numRecv,reflectedSig);
+        
+        phaseExtractPoints = ExtractPhase(rxSig,m,targetIndex,numPhaseExtractPoints,numRecv,reflectedSig);
     end
     
     if m>100

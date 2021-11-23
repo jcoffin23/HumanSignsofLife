@@ -1,4 +1,4 @@
-function [phaseExtractPoints] = ExtractPhase(rxSig,m,targetIndex,numHuTgt,numRecv,reflectedSig)
+function [phaseExtractPoints,muFFT] = ExtractPhase(rxSig,m,targetIndex,numHuTgt,numRecv,reflectedSig)
 
 if numRecv ~= 1
     % this is done because it is very important to extract phase in the

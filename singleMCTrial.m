@@ -216,7 +216,7 @@ for m = 1:Nsweep
     
     if m==100 %Run the first 100 rx signals before finding where to extract phase
         
-        phaseExtractPoints = ExtractPhase(rxSig,m,targetIndex,numPhaseExtractPoints,numRecv,reflectedSig);
+        [phaseExtractPoints,muFFT] = ExtractPhase(rxSig,m,targetIndex,numPhaseExtractPoints,numRecv,reflectedSig);
     end
     
     if m>100
@@ -295,7 +295,7 @@ whichTarget = 1;
 
 
 tgtStructOut = tgtStruct;
-
+tgtStructOut.muFFT = muFFT;
 
 
 

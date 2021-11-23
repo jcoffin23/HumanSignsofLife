@@ -86,12 +86,12 @@ sendElmnt = phased.ShortDipoleAntennaElement('AxisDirection','Y');
 %% Target Def
 numTgt = 1;
 
-
+tgtStruct.legacyHR=1; %Set to use constant heart rate
 tgtStruct.human = [1];
 tgtStruct.offset = [10];
 tgtStruct.yoffset= [0];
 tgtStruct.zoffset = [0];
-tgtStruct.fhActual=zeros(numSamps,numTgt);
+tgtStruct.fhActual=zeros(1,numTgt);
 tgtStruct.frActual=zeros(1,numTgt);
 
 tgtStruct.numTgt = length(tgtStruct.human);
@@ -110,15 +110,15 @@ respActualMat=zeros(size(peakFFTMat));
 
 for k = 1:numVar
     
-    RespErrVec = zeros(1,numMCTrials); %Error Vector to be averaged over
-    HeartErrVec = zeros(1,numMCTrials);
-%     tic
+%     RespErrVec = zeros(1,numMCTrials); %Error Vector to be averaged over
+%     HeartErrVec = zeros(1,numMCTrials);
+    %     tic
     
     %% Loop same conditions over 10 trials
     % Loop over the same conditions 10 times and store the error results.
     
     for trialNum = 1:length(powerVec)
-%         tic
+        %         tic
         inputStruct.fc = fc;
         inputStruct.bw = bw;
         inputStruct.recvArray = recvArray;
@@ -136,9 +136,9 @@ for k = 1:numVar
         
         inputStruct.bistatic = 0;
         
-%        
-         inputStruct.miliPow = powerVec(k);
-
+         inputStruct.collectAllTargetPhase = 0;
+        inputStruct.miliPow = powerVec(k);
+        
         avgResp = zeros(1,avgNum);
         avgHeart = zeros(1,avgNum);
         avgfftAtTarget = zeros(1,avgNum);
@@ -148,9 +148,8 @@ for k = 1:numVar
             inputStruct.bw = bw;
             [respErr,heartErr,~,chestSig(trialNum,k,:),peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
             
-            FHA(trialNum,k,:) = tgtStructOut.fhActual;
             avgResp(avg) = respErr;
-%             avgHeart(avg) =heartErr;
+            avgHeart(avg) =heartErr;
             avgpeakFFT(avg) =peakFFT;
             avgmuFFT(avg) = tgtStructOut.muFFT;
         end
@@ -162,21 +161,21 @@ for k = 1:numVar
         heartMat(trialNum,k) = mean(avgHeart);
         heartActualMat(trialNum,k) = tgtStructOut.fhActual;
         respActualMat(trialNum,k) = tgtStructOut.frActual;
-%         toc
+        %         toc
     end
-%     toc
-%     heartRoc(k) = mean(HeartErrVec);%Average over the error to get the error estimate for this variable value
-%     respRoc(k) = mean(RespErrVec);
+    %     toc
+    %     heartRoc(k) = mean(HeartErrVec);%Average over the error to get the error estimate for this variable value
+    %     respRoc(k) = mean(RespErrVec);
     
 end
 
-imagesc(powerVec,offSetVec,peakFFTMat)
+imagesc(powerVec,offSetVec,respMat)
 xlabel('Offset(m)')
 ylabel('TxPower(mW)')
-title('Peak FFT value for tx power and offset values')
+title('Respiratory error vs Tx Power and Offset')
 
-imagesc(powerVec,offSetVec,peakFFT > 5*stdMat)
+imagesc(powerVec,offSetVec,heartMat)
 xlabel('Offset(m)')
 ylabel('TxPower(mW)')
-title('Peak FFT value for tx power and offset values')
+title('Heart rate error vs Tx Power and Offset')
 

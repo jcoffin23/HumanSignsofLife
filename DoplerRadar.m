@@ -1,4 +1,4 @@
-function [frError,fhError,rangeRes,chestSig,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inStruct,tgtStruct)
+function [frError,fhError,rangeRes,chestSig,peakFFT,tgtStructOut,recvPow] = DoplerRadar(inStruct,tgtStruct)
 %% Constants
 fc = inStruct.fc;
 bw = inStruct.bw;
@@ -70,12 +70,12 @@ targetIndex = [1:numHuTgt;targetIndex(tgtStruct.human ==1)]
 %% Radar Setup
 antAperture =6.06e-4;                        % Antenna aperture (m^2)
 
-frq = 77e9;
-lambda = c/frq;
+frq = 77e9
+lambda = c/frq
 antGain = aperture2gain(antAperture,lambda);  % Antenna gain (dB)
 
 antGain = 3.2538;
-antGain = inStruct.gain;
+
 txPkPower = db2pow(5)*1e-3;                   % Tx peak power (W)
 txPkPower = miliPow*1e-3;
 txGain = antGain;                             % Tx antenna gain (dB)

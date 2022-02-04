@@ -32,9 +32,9 @@ wpts = [];
 
 for k = 1:numTgt
     
-    
+    z = tgtStruct.zoffset(k)*ones(size(t'));
     if tgtStruct.human(k) ==1
-        z = tgtStruct.zoffset(k)*ones(size(t'));
+        
         
         %Get the chest compression signal. We The frequencies are random each time
         %and are drawn from a pool uniformly. We need to save them to compare the

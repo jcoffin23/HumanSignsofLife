@@ -32,11 +32,11 @@ numSamps = 4000; %this is known because of internal decisions. bad code?
 
 
 %% Set up Defaults
-fc = 5e9;
+fc = 24e9;
 
 lambda = c/fc;
 bw = .18e9;
-
+bw = .5e9;
 beatError = 0;
 
 %Respitory Height is about 4 - 12 mm
@@ -106,19 +106,24 @@ inputStruct.numRecv = (NumeleMents * usingArray) + (1*(1-usingArray)); % If usin
 inputStruct.enablePic = 0;
 inputStruct.rxRad=rxRad;
 inputStruct.bistatic = 0;
-inputStruct.miliPow = 20;
+
+
+inputStruct.miliPow = 100;
+
+
 inputStruct.bw = bw;
 
 
-clutterOffsetVec = [15:5:30];
-huPhase = zeros(numSamps,4);
+clutterOffsetVec = [10:5:30];
+lenTest = length(clutterOffsetVec);
+huPhase = zeros(numSamps,lenTest);
 
-clutPhase = zeros(numSamps,4);
-for k = 1:4
+clutPhase = zeros(numSamps,lenTest);
+for k = 1:lenTest
    
     %Paramters that are different for this test are below
 tgtStruct.human = [1,0];
-tgtStruct.offset = [15,clutterOffsetVec(k)];
+tgtStruct.offset = [5,clutterOffsetVec(k)];
 inputStruct.collectAllTargetPhase = 1;
 
 [frError,fhError,rangeRes,chestSig,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
@@ -132,17 +137,18 @@ clutPhase(:,k) = chestSig(2,:);
     
 end
 
-
+figure
 plot(tgtStructOut.t,huPhase)
 xlabel('Time(s)')
 ylabel('c(t)')
 title('Chest Compression vs time')
-legend('Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
+% legend('Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
 
+figure
 plot(tgtStructOut.t,clutPhase)
 xlabel('Time(s)')
 ylabel('Clutter Phase')
 title('Clutter Phase vs time')
-legend('Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
+% legend('Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
 
-
+save('pt2.mat')

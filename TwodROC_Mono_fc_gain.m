@@ -25,14 +25,18 @@ feet2meter  = 0.3048;% 1 foot is this many meters.
 %% Set Up Variables to be used as test inputs
 
 
-offSetVec = linspace(5,49,40);
+fcVec = 20:1:30;
+% fcVec = 24;
 
 
-powerVec = linspace(1,20,50) ;
+% gainVec = linspace(.1,20,50) ;
 
+gainVec = linspace(.1,10,50);
 
-numVar = length(offSetVec); %Find out how long it is
-numPow = length(powerVec);
+gainVec = logspace(-3,2,50);
+
+numVar = length(fcVec); %Find out how long it is
+numPow = length(gainVec);
 
 
 
@@ -88,7 +92,7 @@ numTgt = 1;
 
 tgtStruct.legacyHR=1; %Set to use constant heart rate
 tgtStruct.human = [1];
-
+tgtStruct.offset = [20];
 tgtStruct.yoffset= [0];
 tgtStruct.zoffset = [0];
 tgtStruct.fhActual=zeros(1,numTgt);
@@ -99,7 +103,7 @@ meanHumanRCS = 0.1992;
 tgtStruct.scatterMatt = [2*meanHumanRCS meanHumanRCS;meanHumanRCS 2*meanHumanRCS];
 % tgtStruct.scatterMatt = cat(3,tgtStruct.scatterMatt,tgtStruct.scatterMatt)
 %% For Loop
-peakFFTMat = zeros(length(powerVec),length(offSetVec));
+peakFFTMat = zeros(length(gainVec),numVar);
 stdMat = zeros(size(peakFFTMat));
 respMat=zeros(size(peakFFTMat));
 heartMat=zeros(size(peakFFTMat));
@@ -117,7 +121,7 @@ for k = 1:numVar
     %% Loop same conditions over 10 trials
     % Loop over the same conditions 10 times and store the error results.
     
-    for trialNum = 1:length(powerVec)
+    for trialNum = 1:length(gainVec)
         %         tic
         inputStruct.fc = fc;
         inputStruct.bw = bw;
@@ -133,34 +137,30 @@ for k = 1:numVar
         inputStruct.numRecv = (NumeleMents * usingArray) + (1*(1-usingArray)); % If using array, then numelements will be equal to number of elemnnts, otherwise it will be 1
         inputStruct.enablePic = 0;
         inputStruct.rxRad=rxRad;
-        
+        inputStruct.miliPow = 20;
         inputStruct.bistatic = 0;
+        inputStruct.bw = bw;
+        inputStruct.collectAllTargetPhase = 0;
         
-         inputStruct.collectAllTargetPhase = 0;
-        inputStruct.miliPow = powerVec(k);
         
-        avgResp = zeros(1,avgNum);
-        avgHeart = zeros(1,avgNum);
-        avgfftAtTarget = zeros(1,avgNum);
-        avgmuFFT = zeros(1,avgNum);
-        avgpeakFFT = zeros(1,avgNum);
-        for avg = 1:avgNum
-            inputStruct.bw = bw;
-            
-            tgtStruct.offset = [offSetVec(trialNum)];
-            [respErr,heartErr,~,chestSig(trialNum,k,:),peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
-            
-            avgResp(avg) = respErr;
-            avgHeart(avg) =heartErr;
-            avgpeakFFT(avg) =peakFFT;
-            avgmuFFT(avg) = tgtStructOut.muFFT;
+        inputStruct.gain = gainVec(trialNum);
+        inputStruct.fc = fcVec(k) * 1e9;
+        
+        avgResp = nan;
+        for avg = 1:1
+        [respErr,~,~,chestSig(trialNum,k,:),~,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
+        avgResp = mean([avgResp,respErr],'omitnan');
         end
         
-        peakFFTMat(trialNum,k) = mean(avgpeakFFT);
-        stdMat(trialNum,k) =mean( avgmuFFT);
-        targetFFTMat(trialNum,k) = mean(avgfftAtTarget);
+        avgResp = respErr;
+%         avgHeart =heartErr;
+%         avgpeakFFT =peakFFT;
+%         avgmuFFT = tgtStructOut.muFFT;
+%         peakFFTMat(trialNum,k) = mean(avgpeakFFT);
+%         stdMat(trialNum,k) =mean( avgmuFFT);
+%         targetFFTMat(trialNum,k) = mean(avgfftAtTarget);
         respMat(trialNum,k) =mean(avgResp);
-        heartMat(trialNum,k) = mean(avgHeart);
+%         heartMat(trialNum,k) = mean(avgHeart);
         heartActualMat(trialNum,k) = tgtStructOut.fhActual;
         respActualMat(trialNum,k) = tgtStructOut.frActual;
         %         toc
@@ -171,13 +171,18 @@ for k = 1:numVar
     
 end
 
-imagesc(powerVec,offSetVec,respMat)
-xlabel('Offset(m)')
-ylabel('TxPower(mW)')
-title('Respiratory error vs Tx Power and Offset')
 
-imagesc(powerVec,offSetVec,heartMat)
-xlabel('Offset(m)')
-ylabel('TxPower(mW)')
-title('Heart rate error vs Tx Power and Offset')
+fcVec;
+
+gainVec;
+
+imagesc(fcVec,gainVec,respMat)
+xlabel('Carrier Freq (Ghz)')
+ylabel('Gain (dB)')
+title('Fc vs Gain')
+% 
+% imagesc(gainVec,fcVec,heartMat)
+% xlabel('Offset(m)')
+% ylabel('TxPower(mW)')
+% title('Heart rate error vs Tx Power and Offset')
 

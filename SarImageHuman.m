@@ -32,11 +32,11 @@ numSamps = 4000; %this is known because of internal decisions. bad code?
 
 
 %% Set up Defaults
-fc = 5e9;
+fc = 10e9;
 
 lambda = c/fc;
 bw = .18e9;
-
+bw = .5e9;
 beatError = 0;
 
 %Respitory Height is about 4 - 12 mm
@@ -81,12 +81,7 @@ tgtStruct.fhActual=zeros(numSamps,numTgt);
 tgtStruct.frActual=zeros(1,numTgt);
 
 tgtStruct.numTgt = numTgt;
-boost=0;
-if boost == 1
-    meanHumanRCS = 10 * 0.1992;
-else
-    meanHumanRCS = 0.1992;
-end
+meanHumanRCS = 0.1992;
 tgtStruct.scatterMatt = [2*meanHumanRCS meanHumanRCS;meanHumanRCS 2*meanHumanRCS];
 %% For Loop
 
@@ -111,20 +106,24 @@ inputStruct.numRecv = (NumeleMents * usingArray) + (1*(1-usingArray)); % If usin
 inputStruct.enablePic = 0;
 inputStruct.rxRad=rxRad;
 inputStruct.bistatic = 0;
-inputStruct.miliPow = 20;
+
+
+inputStruct.miliPow = 100;
+
+
 inputStruct.bw = bw;
 
 
-clutterOffsetVec = [5:1:30];
-lenClut = length(clutterOffsetVec);
-huPhase = zeros(numSamps,lenClut);
+clutterOffsetVec = [1:1:30];
+lenTest = length(clutterOffsetVec);
+huPhase = zeros(numSamps,lenTest);
 
-clutPhase = zeros(numSamps,lenClut);
-for k = 1:lenClut
+clutPhase = zeros(numSamps,lenTest);
+for k = 1:lenTest
    
     %Paramters that are different for this test are below
 tgtStruct.human = [1,0];
-tgtStruct.offset = [30,clutterOffsetVec(k)];
+tgtStruct.offset = [15,clutterOffsetVec(k)];
 inputStruct.collectAllTargetPhase = 1;
 
 [frError,fhError,rangeRes,chestSig,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
@@ -138,17 +137,18 @@ clutPhase(:,k) = chestSig(2,:);
     
 end
 
-
+figure
 plot(tgtStructOut.t,huPhase)
 xlabel('Time(s)')
 ylabel('c(t)')
 title('Chest Compression vs time')
-legend('Clutter: 5m','Clutter: 10m','Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
+% legend('Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
 
+figure
 plot(tgtStructOut.t,clutPhase)
 xlabel('Time(s)')
 ylabel('Clutter Phase')
 title('Clutter Phase vs time')
-legend('Clutter: 5m','Clutter: 10m','Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
+% legend('Clutter: 15m','Clutter: 20m','Clutter: 25m','Clutter: 30m')
 
-save('pt3.mat')
+save('pt2.mat')

@@ -4,7 +4,7 @@ c = 3e8;
 
 feet2meter  = 0.3048;% 1 foot is this many meters.
 %% Radar Params
-fc = 5e9; %Carrier Freqeuncy
+fc = 26e9; %Carrier Freqeuncy
 
 lambda = c/fc; %Wave Length
 bw = .5e9; %BandWidth
@@ -63,16 +63,16 @@ sendElmnt = phased.CosineAntennaElement('CosinePower',[1,directionalInPut]);
 % sendElmnt = phased.ShortDipoleAntennaElement('AxisDirection','Y');
 
 %% Target Def
-numTgt = 1;
+numTgt = 4;
 
 
 numSamps = 10000;
 tgtStruct.numTgt = numTgt;
 
-tgtStruct.human = [1];
-tgtStruct.offset = [10];
-tgtStruct.yoffset= [0];
-tgtStruct.zoffset= [1];
+tgtStruct.human = [1,0,0,0];
+tgtStruct.offset = [10,15,12,20];
+tgtStruct.yoffset= [0,0,0,0];
+tgtStruct.zoffset= [1,0,0,0];
 tgtStruct.fhActual=zeros(numSamps,numTgt);
 tgtStruct.frActual=zeros(1,numTgt);
 
@@ -117,7 +117,7 @@ fd_max = speed2dop(2*v_max,lambda);
 fb_max = fr_max+fd_max;
 fst = max(2*fb_max,bw);
 
-
+prf = 1/tm;
 fs = ceil(tm*fst)/tm; %Set fs to be interger multiple of
 
 
@@ -201,10 +201,10 @@ rxchannel = phased.FreeSpace('SampleRate',fs,...
 
 %% AntennaPlatform
 
-radarVelocity = .10;
+radarVelocity = 0;
 
-rxPlatform = phased.Platform('InitialPosition',[0;-rxRad;0],'Velocity',[0;0;radarVelocity],'OrientationAxesOutputPort',true);
-txPlatform = phased.Platform('InitialPosition',[0;rxRad;0],'Velocity',[0;0;radarVelocity],'OrientationAxesOutputPort',true);
+rxPlatform = phased.Platform('InitialPosition',[0;-rxRad;-2],'Velocity',[0;0;radarVelocity],'OrientationAxesOutputPort',true);
+txPlatform = phased.Platform('InitialPosition',[0;rxRad;-2],'Velocity',[0;0;radarVelocity],'OrientationAxesOutputPort',true);
 
 
 %% Target movement setup
@@ -249,7 +249,7 @@ recvPow = zeros(1,Nsweep);
 
 
 
-reflectedSig = zeros(length(sig),numRecv);
+reflectedSig = zeros(length(sig),Nsweep);
 
 for m = 1:Nsweep
     
@@ -263,129 +263,41 @@ for m = 1:Nsweep
     
     reflectedSig(:,m) = rxSig; %Beam form the response
     
-    reflectedFFT = fft(rxSig);
-    
-    if m<100
-        [maxFFT,idMax] = max(abs(reflectedFFT));
-         idmaxSave(m) = idMax;
-    end
-
-    
-    if m==100
-        idRunAvg =  mean(idmaxSave(1:m-1));
-        idMax = round(idRunAvg);
-        
-        meanfft = fft(mean(reflectedSig(:,1:m),2));
-        fftAtTarget = abs(meanfft(targetIndex));
-        muFFT = mean(abs(meanfft));
-        [pks,locs] = findpeaks(abs(meanfft));
-        [pks,sortIdx]=sort(pks);
-        locs=locs(sortIdx);
-        
-        pks = pks(end-2:end);
-%         phaseExtractPoints = locs(end-1:end);
-        phaseExtractPoints = locs(end);
-        peakFFT = pks(end);
-    end
-    
-    if m>100
-        reflectedPhase(:,m) =  (angle(reflectedFFT(phaseExtractPoints))); %Calculate the phase of the reflected signal AT the beat freqeuncy ONLY!!
-    end
-    
-    
+%     reflectedFFT = fft(rxSig);   
     
 end
 
-recvPow = mean(recvPow);
-
-%% Calculate Phase and then Displacement
-
-reflectedPhase = unwrap(reflectedPhase,[],2);
-chestSig = lambda*reflectedPhase /(4*pi);
-
-
-
-%% IQ dmodulation
-%
-% phi = unwrap(atan2(imag(reflectedSig),real(reflectedSig))); %Calcuate the phase of the reflected signal.
-%
-% phiSig = min(phi); %The min phase is the reflected signal.
-
-
-%The chest signal is realted to the phase of the reflection (see source 1)
-PlotChest = 0; %only plot chest signal if this is a 1. This is a debug thing
-if PlotChest
-    
-    cnt=1;
-    str = {};
-    figure
-    plot(t(101:end),chestSig(101:end))
-    for plotIdx = numTgt:-1:1
-        plot(t,chestSig(plotIdx,:))
-        hold on
-        str{cnt}=['Target ',num2str(cnt)]
-        cnt=cnt+1;
-    end
-    
-    title(' Chest Compression c(t) vs Time')
-    ylabel('c(t)')
-    xlabel('time (s)')
-    
-    legend(str)
-    
-    
-end
-% ctEst = chestSig(tidx,:);
-
-
-
-whichTarget = 1;
- %Which target to compare the frequencies
-[fr3,fh3] = estFreqs(chestSig(whichTarget,:)-mean(chestSig(whichTarget,:)),fsChest); %Estimate the freqeuncy of the chest sig (Must be DC so zero frequency does not have as much power
-
-
-tgtStructOut = tgtStruct;
-
-
-
-
-
-frError = min(abs(fr3-frActual(whichTarget)));
-fhError = min(abs(fh3-fhActual(whichTarget)));
-
-if fhError > .5
-   qq= 21; 
-else
-    qq=22;
-end
 
 %% Calculate Range Estimate plot (Only works with High Band width (.5 GHz)
 calcRangePlot = 0; %Only cacluate range Plot if needed. Do not need to for MC trials. It is only a diagonstic.
 if calcRangePlot
+    
+    pulseCompression = phased.RangeResponse('RangeMethod', 'FFT', 'PropagationSpeed', c, 'SampleRate', fs,'SweepSlope',sweepSlope,'ReferenceRangeCentered',0);
+%     [cdata, rnggrid] = pulseCompression(reflectedSig);
+    
+    
     L = size(reflectedSig,1);
     freq_res = fs/L; %The freqeucny resolution is depentant on the sampling frequency and number of FFT points
     freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn this into range
     
     rangeVec = beat2range(freqGrid,sweepSlope); %Turn beat freqeuncies into range (see documentation for how this works, simple multiply)
     
-%     [~,tidx] = min(abs(rangeVec -targetOffset)); %This is the idx of the range vec that corresponds to the target.
-    
+
     
     rngDat = fft(reflectedSig,L,1); %Calculated beat Frequencies using FFT
     
     rngDat = rngDat(1:L,:); %Take only positive Freqencies
-    
-%     titleStr = ['clutter located at - (',num2str(tgtx),',',num2str(tgty),')'];
+
     
     figure
     imagesc(t,rangeVec,20*log10(abs(rngDat))) %Plot FFT data vs time and Beat range
     title(['Range vs time'])
     xlabel('Time (s)')
-    % xlabel('Angle to Second Target')
+
     ylabel('Range Estimate')
     ylim([0,range_max + 10])
 
-%     jct.util.SavetoPng(['.\temp\Range vs time ',titleStr,'.png'])
+
 
     %% Build Doppler Info
     showDop = 0;
@@ -418,27 +330,91 @@ if calcRangePlot
     end
 end
 
-%%
 
-pltYes = 0;
-if pltYes
-    to = txPlatform.InitialPosition;
-    ro = rxPlatform.InitialPosition;
-    
-    posmat = targetplatform.CustomTrajectory';
-    originPos = targetplatform.CustomTrajectory(1,2:end)
-    figure(1)
-    plot3(posmat(2,:),posmat(3,:),posmat(4,:),'b.')
-    hold on
-    plot3(ro(1),ro(2),ro(3),'rx')
-    
-    plot3(to(1),to(2),to(3),'rx')
-    
-    plot3(originPos(1),originPos(2),originPos(3),'ro')
-    xlabel('X (m)')
-    ylabel('Y (m)')
-    zlabel('Z (m)')
-    grid
-    hold off
+range_max = 50;
+tm = 5.5*range2time(range_max);
+sweepSlope = bw/tm;
+fr_max = range2beat(range_max,sweepSlope,c);
+v_max = 10*1000/3600;
+fd_max = speed2dop(2*v_max,lambda);
+fb_max = fr_max+fd_max;
+fst = max(2*fb_max,bw);
+
+initSig = reflectedSig
+%% 
+reflectedSig = initSig;
+
+
+
+reflectedSig = reflectedSig.';
+ncol = width(reflectedSig);
+nrow = height(reflectedSig);
+
+[cref,fcref]=rng_ref(ncol,fs,tm,sweepSlope);
+%
+% take the fft of the SAR data
+%
+fcdata=fft(reflectedSig);
+%
+% multiply by the range reference function
+%
+cout=0.*fcdata;
+for k=1:nrow
+    ctmp=fcdata(:,k);
+    ctmp=fcref.*ctmp;
+    cout(:,k)=ctmp;
 end
+clear cdata
+%
+% now take the inverse fft
+%
+odata=ifft(cout.');
+
+
+figure
+imagesc(t,rangeVec,20*log10(abs(odata.'))) %Plot FFT data vs time and Beat range
+title(['Range vs time'])
+xlabel('Time (s)')
+
+ylabel('Range Estimate')
+
+
+%% Az correction
+
+fdc=.1;
+fr=2*radarVelocity*radarVelocity/(10*lambda);
+
+[cazi,fcazi]=azi_ref(nrow,prf,fdc,fr);
+%
+% take the column-wise fft of the range-compressed
+%
+fcdata=fft(odata.');
+%
+% multiply by the azimuth reference function
+%
+cout=0.*fcdata;
+for k=1:ncol
+    ctmp=fcdata(:,k);
+    ctmp=fcazi.*ctmp;
+    cout(:,k)=ctmp;
+end
+%
+% now take the inverse fft and plot the data
+%
+odata=ifft(cout);
+
+figure
+imagesc(t,rangeVec,20*log10(abs(odata.'))) %Plot FFT data vs time and Beat range
+title(['Range vs time'])
+xlabel('Time (s)')
+
+ylabel('Range Estimate')
+
+%%
+Rc = 10
+fastTime = (0:1/fs:(length(sig)-1)/fs);
+
+crossRangeResolution = 10
+data = helperBackProjection(reflectedSig,rnggrid,fastTime,fc,fs,prf,radarVelocity,crossRangeResolution,c)
+
 

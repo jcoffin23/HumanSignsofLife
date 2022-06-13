@@ -25,7 +25,7 @@ feet2meter  = 0.3048;% 1 foot is this many meters.
 %% Set Up Variables to be used as test inputs
 
 
-fcVec = 20:1:30;
+fcVec = 20:.5:30;
 % fcVec = 24;
 
 
@@ -33,7 +33,7 @@ fcVec = 20:1:30;
 
 gainVec = linspace(.1,10,50);
 
-gainVec = logspace(-3,2,50);
+% gainVec = logspace(-3,2,30);
 
 numVar = length(fcVec); %Find out how long it is
 numPow = length(gainVec);

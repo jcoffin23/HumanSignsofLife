@@ -37,10 +37,10 @@ feet2meter  = 0.3048;% 1 foot is this many meters.
 
 
 
-offSetVec = linspace(5,49,40);
+offSetVec = linspace(5,20,10);
 
 
-powerVec = linspace(1,77,50) * 1e9;
+powerVec = linspace(24,26,20) * 1e9;
 
 
 
@@ -133,10 +133,11 @@ sendElmnt = phased.ShortDipoleAntennaElement('AxisDirection','Y');
 numTgt = 1;
 
 
-tgtStruct.human = [1,1,1];
-tgtStruct.offset = [7,10,14];
-tgtStruct.yoffset= [0,0,0];
-tgtStruct.zoffset = [0,0,0]
+tgtStruct.human = [1];
+tgtStruct.offset = [10];
+tgtStruct.yoffset= [0];
+tgtStruct.zoffset = [0]
+tgtStruct.legacyHR = 0
 tgtStruct.fhActual=zeros(numSamps,numTgt);
 tgtStruct.frActual=zeros(1,numTgt);
 
@@ -158,13 +159,13 @@ for k = 1:numVar
     
     RespErrVec = zeros(1,numMCTrials); %Error Vector to be averaged over
     HeartErrVec = zeros(1,numMCTrials);
-%     tic
+    %     tic
     
     %% Loop same conditions over 10 trials
     % Loop over the same conditions 10 times and store the error results.
     
     for trialNum = 1:length(powerVec)
-%         tic
+        %         tic
         inputStruct.fc = powerVec(trialNum);
         inputStruct.bw = bw;
         inputStruct.recvArray = recvArray;
@@ -180,13 +181,13 @@ for k = 1:numVar
         inputStruct.numRecv = (NumeleMents * usingArray) + (1*(1-usingArray)); % If using array, then numelements will be equal to number of elemnnts, otherwise it will be 1
         inputStruct.enablePic = 0;
         inputStruct.rxRad=rxRad;
-        
+        inputStruct.collectAllTargetPhase =0;
         inputStruct.bistatic = 0;
-        
-%         tgtStruct.offset =offSetVec(k);
-%         tgtStruct.offset = [20];
-%         inputStruct.miliPow = powerVec(trialNum);
-         inputStruct.miliPow = 20
+        inputStruct.gain = 40;
+        %         tgtStruct.offset =offSetVec(k);
+        %         tgtStruct.offset = [20];
+        %         inputStruct.miliPow = powerVec(trialNum);
+        inputStruct.miliPow = 20;
         %     if trialNum ==1
         %         inputStruct.enablePic = 1;
         %     end
@@ -199,17 +200,16 @@ for k = 1:numVar
         avgpeakFFT = zeros(1,avgNum);
         for avg = 1:avgNum
             inputStruct.bw = bw;
-            [respErr,heartErr,~,chestSig(trialNum,k,:),fftAtTarget,muFFT,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
-            
+            [respErr,~,~,chestSig(trialNum,k,:),~,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
             FHA(trialNum,k,:) = tgtStructOut.fhActual;
             
-            RPMat(trialNum,k) = recvPow; %Average recieve power for the test conditions. 
+            RPMat(trialNum,k) = recvPow; %Average recieve power for the test conditions.
             
             avgResp(avg) = respErr;
-            avgHeart(avg) =heartErr;
-            avgfftAtTarget(avg) =fftAtTarget;
-            avgmuFFT(avg) =muFFT;
-            avgpeakFFT(avg) =peakFFT;
+%             avgHeart(avg) =heartErr;
+%             avgfftAtTarget(avg) =fftAtTarget;
+%             avgmuFFT(avg) =muFFT;
+%             avgpeakFFT(avg) =peakFFT;
         end
         
         peakFFTMat(trialNum,k) = mean(avgpeakFFT);
@@ -217,11 +217,11 @@ for k = 1:numVar
         targetFFTMat(trialNum,k) = mean(avgfftAtTarget);
         respMat(trialNum,k) =mean(avgResp);
         heartMat(trialNum,k) = mean(avgHeart);
-%         heartActualMat(trialNum,k) = tgtStructOut.fhActual;
-         respActualMat(trialNum,k) = tgtStructOut.frActual;
-%         toc
+        %         heartActualMat(trialNum,k) = tgtStructOut.fhActual;
+        respActualMat(trialNum,k) = tgtStructOut.frActual;
+        %         toc
     end
-%     toc
+    %     toc
     heartRoc(k) = mean(HeartErrVec);%Average over the error to get the error estimate for this variable value
     respRoc(k) = mean(RespErrVec);
     
@@ -235,17 +235,17 @@ end
 
 % datOut=jct.util.threedto2d(chestSig(:,:,:)).';
 % heartActualMat  = heartActualMat(1:k-1);
-% respActualMat = respActualMat(1:k-1); 
+% respActualMat = respActualMat(1:k-1);
 
 % offSetVec = offSetVec(1:k-1);
 
 % save('ML_phaseFull_HRV','datOut','heartActualMat','respActualMat','offSetVec','-v7.3')
-   save('tpdatBWGain20.mat') 
-   datOut = chestSig;
- save('C:\Users\Joe\Desktop\ML_phaseFull_2dROC_fcOffset_20mw_fixbgain','datOut','FHA','respActualMat','offSetVec','-v7.3')
+save('tpdatBWGain20.mat')
+datOut = chestSig;
+save('C:\Users\Joe\Desktop\ML_phaseFull_2dROC_fcOffset_20mw_fixbgain','datOut','FHA','respActualMat','offSetVec','-v7.3')
 
 % preAmble = '2dROC2\2dROC_bistaic_updatedSMat\';
-% 
+%
 % percentH = abs(heartMat)./heartActualMat;
 % percentR = abs(respMat)./respActualMat;
 
@@ -327,10 +327,10 @@ ylabel('Tx Power (mW)')
 % ylabel('Error (Hz)')
 % xlabel('Clutter Offset (m)')
 % % ylim([0,1])
-% 
-% 
+%
+%
 % subplot 212
-% 
+%
 % plot(varVector,respRoc)
 % title('Respiratory Rate Error vs Clutter Offset')
 % ylabel('Error (Hz)')

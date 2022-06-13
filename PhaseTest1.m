@@ -32,10 +32,10 @@ numSamps = 4000
 
 
 %% Set up Defaults
-fc = 5e9;
+fc = 24e9;
 
 lambda = c/fc;
-bw = .18e9;
+bw = .1e9;
 
 beatError = 0;
 
@@ -68,7 +68,7 @@ sendElmnt = phased.ShortDipoleAntennaElement('AxisDirection','Y');
 %% Target Def
 numTgt =5;
 
-
+tgtStruct.legacyHR = 0;
 tgtStruct.human = [1,1,1,1,1];
 tgtStruct.offset = [10,15,20,25,50];
 tgtStruct.yoffset= zeros(1,5);
@@ -105,7 +105,7 @@ inputStruct.bistatic = 0;
 inputStruct.miliPow = 20;
 inputStruct.bw = bw;
 inputStruct.collectAllTargetPhase = 0;
-
+inputStruct.gain = 18;
 
 
 [frError,fhError,rangeRes,chestSig,peakFFT,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);

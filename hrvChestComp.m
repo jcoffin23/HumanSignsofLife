@@ -115,7 +115,7 @@ nt = sqrt(sigN2)*randn(size(t));
 %Create HRV, so each cycle has a different period controled by the HRV
 %value which will be constant across the run.
 a = 20;
-b = 50;
+b = 800;
 hrvVal = (a + (b-a).*rand)*10^-3; %Select a random number between 20 and 200 ms to be the HRV value
 hrt = zeros(size(t)); %pre allocate the vector
 fhOut = hrt;
@@ -176,6 +176,12 @@ if genFig
     title('Combined Chest Compression Signal')
     xlabel('Time (s)')
     ylabel('Amplitude')
+    
+    figure
+    plot(t,fhOut)
+    title('Heart Rate vs Time')
+    xlabel('Time (s)')
+    ylabel('Heart Rate (Hz)')
     
     
 end

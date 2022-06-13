@@ -42,8 +42,9 @@ for k = 1:numTgt
         %         [~,ct,vt,tgtStruct.frActual(k),tgtStruct.fhActual(k)] = getChestCompression(fsChest,[],length(t),0,0,tgtStruct.offset(k),respHeight,heartHeight);
         
         
-        if isfield(tgtStruct,'legacyHR')
-            [~,ct,~,tgtStruct.frActual(k),tgtStruct.fhActual(k)] = getChestCompression(fsChest,[],length(t),0,0,tgtStruct.offset(k),respHeight,heartHeight,t);
+        if tgtStruct.legacyHR % if true do not simulate HRV || If false simulate HRV
+            [~,ct,~,tgtStruct.frActual(k),tgtStruct.fhActual(1,k)] = getChestCompression(fsChest,[],length(t),0,0,tgtStruct.offset(k),respHeight,heartHeight,t);
+            
         else
             [~,ct,~,tgtStruct.frActual(k),tgtStruct.fhActual(:,k)] = hrvChestComp(fsChest,[],length(t),0,0,tgtStruct.offset(k),respHeight,heartHeight,1);
             
@@ -86,8 +87,9 @@ targetplatform = phased.Platform('MotionModel','Custom','CustomTrajectory',wpts,
 %     targetplatform.InitialPosition = zeros(3,2);
 %     targetplatform.InitialVelocity = zeros(3,2);
 
-
-
+if tgtStruct.legacyHR
+    tgtStruct.fhActual = tgtStruct.fhActual(1,:);
+end
 
 end
 

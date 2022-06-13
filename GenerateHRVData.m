@@ -1,8 +1,8 @@
 
 fs = 500;
 fsChest = fs;
-Tmax = 100;
-heartHeight = 1*10^-3; 
+Tmax = 50;
+heartHeight = .5*10^-3; %Heart rate is 30 percent of the respitory rate.
 respHeight = 10 * 10^-3;
 t = 0:1/fs:Tmax;
 
@@ -22,6 +22,12 @@ k
 
 end
 
+
+dOut = datOut(:,k);
+fhA = fhActual(:,k);
+frA = frActual(k);
+
+ save('EKFDat_HRV_long.mat','fhA','frA','dOut','fs')
 % save('C:\Users\Joe\Desktop\ML_genTrain_HRV_full_fs500_long_1.mat','datOut','frActual','fhActual','t','-v7.3')
 
 save('C:\Users\Joe\Desktop\ML_HRV_full_fs500_long_1.mat','datOut','frActual','fhActual','t','-v7.3')

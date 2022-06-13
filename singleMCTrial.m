@@ -29,15 +29,19 @@ c = 3e8;
 lambda = c/fc;
 range_max = 50;
 tm = 5.5*range2time(range_max);
+% tm = 4*10^-3
 % rangeRes  = .3;
 % bw = range2bw(rangeRes,c); %0.5 Ghz
 % bw = .18*10^9
+
 sweepSlope = bw/tm;
 fr_max = range2beat(range_max,sweepSlope,c);
 v_max = 10*1000/3600;
 fd_max = speed2dop(2*v_max,lambda);
 fb_max = fr_max+fd_max;
 fst = max(2*fb_max,bw);
+
+
 
 
 fs = ceil(tm*fst)/tm; %Set fs to be interger multiple of
@@ -70,12 +74,14 @@ targetIndex = [1:numHuTgt;targetIndex(tgtStruct.human ==1)]
 %% Radar Setup
 antAperture =6.06e-4;                        % Antenna aperture (m^2)
 
-frq = 77e9;
-lambda = c/frq;
-antGain = aperture2gain(antAperture,lambda);  % Antenna gain (dB)
-
-antGain = 3.2538;
+% frq = 77e9;
+% lambda = c/frq;
+% antGain = aperture2gain(antAperture,lambda);  % Antenna gain (dB)
+% 
+% antGain = 3.2538;
 antGain = inStruct.gain;
+
+
 txPkPower = db2pow(5)*1e-3;                   % Tx peak power (W)
 txPkPower = miliPow*1e-3;
 txGain = antGain;                             % Tx antenna gain (dB)
@@ -116,7 +122,7 @@ channel = phased.FreeSpace(...
     'SampleRate',fs,'MaximumDistanceSource','Property','MaximumDistance',range_max);
 
 txchannel = phased.FreeSpace('SampleRate',fs,...
-    'OperatingFrequency',fc,'PropagationSpeed',c);
+    'OperatingFrequency',fc,'PropagationSpeed',c );
 rxchannel = phased.FreeSpace('SampleRate',fs,...
     'OperatingFrequency',fc,'PropagationSpeed',c);
 
@@ -153,11 +159,11 @@ else
 end
 %% Simulation start
 
-
-pedest = backscatterPedestrian( 'Height',1.8, ...
-    'OperatingFrequency',fc,'InitialPosition',[10;0;0], ...
-    'InitialHeading',180,'WalkingSpeed',0.01);
-
+% 
+% pedest = backscatterPedestrian( 'Height',1.8, ...
+%     'OperatingFrequency',fc,'InitialPosition',[10;0;0], ...
+%     'InitialHeading',180,'WalkingSpeed',0.01);
+% 
 
 
 %% Simulation Loop
@@ -190,13 +196,13 @@ for m = 1:Nsweep
     end
 %     targetplatform(dt);
     recvPow(m) = (norm(rxSig)^2) / length(rxSig);
+    addNoise = 0;
     if addNoise
-        tpResponse = fft(rxSig);
-        
-        maxtp = max(abs(tpResponse));
-        noiseMult = db2pow(-stv)*maxtp;
-        
-        rxSig =  rxSig + noiseMult*randn(size(rxSig));
+%         A = respHeight;
+%         powerResp = (A^2)/2;
+%         noiseMult = db2pow(-stv)*maxtp;
+        rxSig = awgn(rxSig,stv,'measured');
+%         rxSig =  rxSig + noiseMult*randn(size(rxSig));
     end
     
     
@@ -234,10 +240,10 @@ if genFig
     L = size(reflectedSig,1);
     freq_res = fs/L; %The freqeucny resolution is depentant on the sampling frequency and number of FFT points
     freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn this into range
-    
+   
     rangeVec = beat2range(freqGrid,sweepSlope); %Turn beat freqeuncies into range (see documentation for how this works, simple multiply)
     figure
-    plot(rangeVec,abs(meanfft))
+    plot(rangeVec,abs(reflectedFFT))
     title('FFT of Recieved Signal')
     ylabel('Magnitude')
     xlabel('Range (m)')
@@ -312,18 +318,24 @@ end
 %% Calculate Range Estimate plot (Only works with High Band width (.5 GHz)
 % calcRangePlot = 0; %Only cacluate range Plot if needed. Do not need to for MC trials. It is only a diagonstic.
 if calcRangePlot
+    
     L = size(reflectedSig,1);
     freq_res = fs/L; %The freqeucny resolution is depentant on the sampling frequency and number of FFT points
     freqGrid = (0:L-1).'*freq_res; %This is the beat frequency vector. Need to turn this into range
     
     rangeVec = beat2range(freqGrid,sweepSlope); %Turn beat freqeuncies into range (see documentation for how this works, simple multiply)
     
+%     q = 100000
+%     rangeVec=rangeVec(1:200);
+%     reflectedSigTemp = reflectedSig(1:q,:);
+    reflectedSigTemp = reflectedSig;
+    
 %     [~,tidx] = min(abs(rangeVec -targetOffset)); %This is the idx of the range vec that corresponds to the target.
     
+    win = hamming(size(reflectedSigTemp,1));
+    rngDat = fft(reflectedSigTemp.*win,10000,1); %Calculated beat Frequencies using FFT
     
-    rngDat = fft(reflectedSig,L,1); %Calculated beat Frequencies using FFT
-    
-    rngDat = rngDat(1:L,:); %Take only positive Freqencies
+%     rngDat = rngDat(1:L,:); %Take only positive Freqencies
     
 %     titleStr = ['clutter located at - (',num2str(tgtx),',',num2str(tgty),')'];
     
@@ -342,7 +354,7 @@ if calcRangePlot
     
     if showDop
         
-        ds = 5000;
+        ds = 4000;
         N = 10*ds;
         TF = ds*tm;
         
@@ -363,8 +375,8 @@ if calcRangePlot
         title('Range vs Doppler')
         xlabel('Doppler Speed (m/s)')
         ylabel('Range Estimate')
-        ylim([0,range_max])
-        xlim([-100,100])
+%         ylim([0,range_max])
+%         xlim([-100,100])
     end
 end
 

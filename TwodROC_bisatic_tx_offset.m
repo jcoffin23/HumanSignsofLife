@@ -25,10 +25,10 @@ feet2meter  = 0.3048;% 1 foot is this many meters.
 %% Set Up Variables to be used as test inputs
 
 
-offSetVec = linspace(5,49,40);
+offSetVec = linspace(5,100,20);
 
 
-powerVec = linspace(1,20,50) ;
+powerVec = linspace(1,20,20) ;
 
 
 numVar = length(offSetVec); %Find out how long it is
@@ -37,7 +37,7 @@ numPow = length(powerVec);
 
 
 
-avgNum = 5; %How many MC trials to average over per varVec value. Total number of runs is numMCtrials * numVar
+avgNum = 1; %How many MC trials to average over per varVec value. Total number of runs is numMCtrials * numVar
 respRoc = zeros(1,numVar);%This is the finial ROC curve for respitory error
 heartRoc = zeros(1,numVar);%Finial ROC curve for heart rate error
 
@@ -48,7 +48,7 @@ chestSig = zeros(numPow,numVar,numSamps);
 
 
 %% Set up Defaults
-fc = 5e9;
+fc = 24e9;
 % bw = 2*10^9;
 lambda = c/fc;
 bw = .5e9;
@@ -108,10 +108,9 @@ heartActualMat=zeros(size(peakFFTMat));
 respActualMat=zeros(size(peakFFTMat));
 
 
-for k = 1:numVar
+for k = 1:length(offSetVec)
     
-    RespErrVec = zeros(1,numMCTrials); %Error Vector to be averaged over
-    HeartErrVec = zeros(1,numMCTrials);
+
 %     tic
     
     %% Loop same conditions over 10 trials
@@ -133,12 +132,14 @@ for k = 1:numVar
         inputStruct.numRecv = (NumeleMents * usingArray) + (1*(1-usingArray)); % If using array, then numelements will be equal to number of elemnnts, otherwise it will be 1
         inputStruct.enablePic = 0;
         inputStruct.rxRad=rxRad;
-        
+        inputStruct.gain = 18;
+        tgtStruct.legacyHR = 1;
+        inputStruct.collectAllTargetPhase = 0;
         inputStruct.bistatic = 0;
         
 %        
-         inputStruct.miliPow = powerVec(k);
-
+        inputStruct.miliPow = powerVec(trialNum);
+        tgtStruct.offset = offSetVec(k);
         avgResp = zeros(1,avgNum);
         avgHeart = zeros(1,avgNum);
         avgfftAtTarget = zeros(1,avgNum);
@@ -170,13 +171,13 @@ for k = 1:numVar
     
 end
 
-imagesc(powerVec,offSetVec,peakFFTMat)
+imagesc(offSetVec,powerVec,respMat)
 xlabel('Offset(m)')
 ylabel('TxPower(mW)')
-title('Peak FFT value for tx power and offset values')
+title('Respiration error for Transmit power vs Target Offset')
 
-imagesc(powerVec,offSetVec,peakFFT > 5*stdMat)
+imagesc(offSetVec,powerVec,heartMat)
 xlabel('Offset(m)')
 ylabel('TxPower(mW)')
-title('Peak FFT value for tx power and offset values')
+title('Heartrate error for Transmit power vs Target Offset')
 

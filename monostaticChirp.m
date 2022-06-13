@@ -45,6 +45,13 @@ function [rxSig,tgtPlat,rxPlat,txPlat] = monostaticChirp(targets,transmitter,rec
 [txPos,txVel] = txPlat(dt);
 [rxPos,rxVel] = rxPlat(dt);
 
+
+% %temp incorrect position testing
+% txPos = txPlat.CustomTrajectory(1,2:end)';
+% rxPos = rxPlat.CustomTrajectory(1,2:end)';
+% rxVel = [0;0;0];
+% txVel = [0;0;0];
+
 %Update target movement for EACH target
 [tgtPos,tgtVel] = tgtPlat(dt);
 refSig = waveform();
@@ -53,6 +60,15 @@ txSig = transmitter(refSig); %Simulate propagation of puse
 [tgtRng,tgtAng]=rangeangle(tgtPos,txPos); %Get angle as seen by transmiter
 
 rxSig = radiator(txSig,tgtAng); %Radiate the targets
+
+c = 3e8;
+lambda = c/txchannel.OperatingFrequency;
+rxSigpre=rxSig;
+%  dbLoss=fspl(tgtRng,lambda);
+ dbLoss = -120;
+%  rxSig= rxSigpre *  10^(-dbLoss/20);
+
+
 rxSig = txchannel(rxSig,txPos,tgtPos,txVel,tgtVel); %Simulate freepath loss
 % sigtgt = zeros(length(txSig),numTgt);
 

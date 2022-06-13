@@ -29,9 +29,9 @@ feet2meter  = 0.3048;% 1 foot is this many meters.
 % fcVec = 24;
 
 
-gainVec = linspace(1,20,50) ;
+gainVec = linspace(1,20,20) ;
 
-offsetVec = 10:.5:45;
+offsetVec = linspace(1,100,20);
 
 numVar = length(offsetVec); %Find out how long it is
 numPow = length(gainVec);
@@ -39,7 +39,7 @@ numPow = length(gainVec);
 
 
 
-avgNum = 5; %How many MC trials to average over per varVec value. Total number of runs is numMCtrials * numVar
+avgNum = 1; %How many MC trials to average over per varVec value. Total number of runs is numMCtrials * numVar
 respRoc = zeros(1,numVar);%This is the finial ROC curve for respitory error
 heartRoc = zeros(1,numVar);%Finial ROC curve for heart rate error
 
@@ -50,7 +50,7 @@ chestSig = zeros(numPow,numVar,numSamps);
 
 
 %% Set up Defaults
-fc = 5e9;
+fc = 24e9;
 % bw = 2*10^9;
 lambda = c/fc;
 bw = .5e9;
@@ -146,19 +146,19 @@ for k = 1:numVar
         tgtStruct.offset = offsetVec(k);
         avgResp = nan;
         for avg = 1:3
-        [respErr,~,~,chestSig(trialNum,k,:),~,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
+        [respErr,hE,~,chestSig(trialNum,k,:),~,tgtStructOut,recvPow] = singleMCTrial(inputStruct,tgtStruct);
         avgResp = mean([avgResp,respErr],'omitnan');
         end
         
         avgResp = respErr;
-%         avgHeart =heartErr;
+         avgHeart =hE;
 %         avgpeakFFT =peakFFT;
 %         avgmuFFT = tgtStructOut.muFFT;
 %         peakFFTMat(trialNum,k) = mean(avgpeakFFT);
 %         stdMat(trialNum,k) =mean( avgmuFFT);
 %         targetFFTMat(trialNum,k) = mean(avgfftAtTarget);
         respMat(trialNum,k) =mean(avgResp);
-%         heartMat(trialNum,k) = mean(avgHeart);
+         heartMat(trialNum,k) = mean(avgHeart);
         heartActualMat(trialNum,k) = tgtStructOut.fhActual;
         respActualMat(trialNum,k) = tgtStructOut.frActual;
         %         toc
@@ -177,7 +177,7 @@ gainVec;
 imagesc(offsetVec,gainVec,respMat)
 xlabel('Target offset (m)')
 ylabel('Gain (dB)')
-title('Target Offset vs Tx Gain')
+title('Target Offset vs Gain')
 
 
 % 
